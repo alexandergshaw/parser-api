@@ -1,5 +1,5 @@
 # Runtime dependencies (installed by Vercel's @vercel/python builder).
-# Keyword extraction is pure-Python (no NLP libs) to keep the serverless
-# bundle small, dependency-free, and fast to cold-start.
-fastapi>=0.111
-pydantic>=2.7
+# Flask is the web layer; keyword extraction / scoring is pure-Python (no NLP libs),
+# keeping the serverless bundle small and cold-starts fast.
+flask>=3.0
+flask-cors>=4.0

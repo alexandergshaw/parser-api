@@ -1,4 +1,4 @@
-# Parser API — Integration Spec (v0.3.0)
+# Parser API — Integration Spec (v0.3.1)
 
 Canonical integration reference for ecosystem consumers. The Parser API is a standalone,
 deterministic, **no-LLM** text → emphases + keywords service. It is domain-general and has
@@ -19,7 +19,7 @@ parent emphasis.
 
 ## 2. Base URL & runtime
 
-- Python / FastAPI on Vercel serverless; all routes rewrite to one function.
+- Python / Flask (WSGI) on Vercel serverless; all routes go to one function.
 - Base URL = your Vercel domain, `{BASE_URL}` (e.g. `https://parser-api-<hash>.vercel.app`).
 - All bodies are `application/json; charset=utf-8`.
 
@@ -50,14 +50,14 @@ headers `Content-Type, X-API-Key`; credentials disabled. Server-to-server caller
 
 ### `GET /api/health` → 200
 ```json
-{ "status": "ok", "version": "0.3.0", "categories": 21 }
+{ "status": "ok", "version": "0.3.1", "categories": 21 }
 ```
 
 ### `GET /api/taxonomy` → 200
 Discover the (growing) vocabulary dynamically instead of hard-coding labels. Sorted by `type`, then `label`.
 ```json
 {
-  "version": "0.3.0",
+  "version": "0.3.1",
   "count": 21,
   "categories": [
     { "id": "astronomy", "label": "Astronomy & Astrophysics", "type": "field" },
@@ -101,7 +101,7 @@ Real response for a data-engineer job description (`max_keywords: 6`):
     { "term": "cicd",                            "display": "CI/CD",                           "score": 0.9,   "source": "rake+lexicon", "related_emphasis": "Software Industry", "related_emphasis_id": "software_industry" },
     { "term": "data pipeline",                   "display": "Data Pipeline",                   "score": 0.9,   "source": "lexicon",      "related_emphasis": "Data Science",      "related_emphasis_id": "data_science" }
   ],
-  "meta": { "token_count": 39, "confidence": 0.6822, "low_confidence": false, "version": "0.3.0" }
+  "meta": { "token_count": 39, "confidence": 0.6822, "low_confidence": false, "version": "0.3.1" }
 }
 ```
 
@@ -173,14 +173,14 @@ values; prefer `id`, and fetch the live list from `GET /api/taxonomy`.
 
 ## 11. Errors
 
-All errors use FastAPI's shape: `{ "detail": "<message>" }` (422 `detail` is an array of validation objects).
+All errors use the shape `{ "detail": "<message>" }` (a string).
 
 | Status | When |
 |---|---|
-| `400` | `text` missing or blank after trim |
+| `400` | `text` missing/blank, or body is not a JSON object |
 | `401` | `API_KEY` configured and `X-API-Key` missing/wrong |
 | `413` | `text` > 50,000 chars |
-| `422` | malformed body / `max_keywords` out of range / wrong types |
+| `422` | `max_keywords` out of range or not an integer |
 
 A `200` with `meta.low_confidence: true` and `primary: null` is **not** an error — it means "no
 category matched." Handle explicitly.
@@ -195,7 +195,7 @@ category matched." Handle explicitly.
 
 ## 13. Versioning
 
-`meta.version`, `/api/health`, and `/api/taxonomy` report semver (currently `0.3.0`). Minor/patch
+`meta.version`, `/api/health`, and `/api/taxonomy` report semver (currently `0.3.1`). Minor/patch
 bumps may grow the taxonomy or tweak scoring (output may shift); pin expectations to a version and
 re-fetch `/api/taxonomy` on changes. Field additions are additive and backward-compatible.
 

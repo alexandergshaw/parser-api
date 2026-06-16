@@ -40,7 +40,7 @@ text ──► normalize (tokenize, 1–3-grams)
 
 | Path | Purpose |
 | --- | --- |
-| `api/index.py` | FastAPI app — Vercel entrypoint, `/api/parse`, serves the testing UI at `/` |
+| `api/index.py` | Flask app — Vercel entrypoint, `/api/parse`, serves the testing UI at `/` |
 | `parser/` | Framework-agnostic core library (unit-testable without HTTP) |
 | `taxonomy/` | `fields.json` + `sectors.json` — the curated lexicons |
 | `public/index.html` | Vanilla-JS testing UI |
@@ -53,7 +53,7 @@ python -m venv .venv
 .venv\Scripts\activate          # Windows  (use: source .venv/bin/activate on macOS/Linux)
 pip install -r requirements-dev.txt
 
-uvicorn api.index:app --reload  # → http://127.0.0.1:8000  (UI at /, docs at /docs)
+flask --app api.index run       # → http://127.0.0.1:5000  (UI at /, docs at /docs)
 pytest                          # run the test suite
 ```
 
@@ -103,8 +103,8 @@ See `.env.example`.
 
 ## Deployment (Vercel)
 
-`vercel.json` rewrites all routes to the FastAPI function, which serves both the UI and the API.
-`requirements.txt` is installed by Vercel's `@vercel/python` builder, which mounts the ASGI `app`.
+`vercel.json` declares an explicit `@vercel/python` build and routes all paths to the Flask function,
+which serves both the UI and the API. The builder installs `requirements.txt` and mounts the WSGI `app`.
 
 ```bash
 vercel        # preview

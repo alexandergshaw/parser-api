@@ -27,6 +27,10 @@ text ──► normalize (tokenize, 1–3-grams)
   Expanding coverage (toward generalist) means editing JSON, not code.
 - **Keyword extraction is pure-Python** (RAKE-style) to keep the Vercel bundle dependency-free and
   cold-starts fast.
+- **Light stemming** on the matching layer so plurals match (`data pipelines` → `data pipeline`),
+  while keywords keep their natural surface form for display.
+- **Keywords are linked to their parent emphasis** via `related_emphasis`, so the researcher API can
+  drive both broad and deep-dive research from a single response.
 
 ## Project layout
 
@@ -64,7 +68,8 @@ pytest                          # run the test suite
   "secondary": { "label": "Software Industry", "type": "sector", "score": 0.54,
                  "matched_terms": ["agile", "ci/cd"] },
   "emphases":  [ /* full ranked list */ ],
-  "keywords":  [ { "term": "gradient boosting", "score": 0.91, "source": "rake" } ],
+  "keywords":  [ { "term": "gradient boosting", "score": 0.91, "source": "rake",
+                  "related_emphasis": "Machine Learning" } ],
   "meta":      { "token_count": 412, "confidence": 0.82, "low_confidence": false,
                  "version": "0.1.0" }
 }

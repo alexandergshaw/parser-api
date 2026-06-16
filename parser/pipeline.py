@@ -5,8 +5,8 @@ from __future__ import annotations
 from typing import Any
 
 from .classify import ScoredCategory, classify, pick_primary_secondary
-from .keywords import merge_keywords, rake
-from .normalize import count_ngrams, load_stopwords, to_chunks
+from .keywords import assign_related_emphasis, merge_keywords, rake
+from .normalize import count_ngrams, load_stopwords, stem_chunks, to_chunks
 from .taxonomy import Taxonomy, get_taxonomy
 
 DEFAULT_MAX_KEYWORDS = 15
@@ -38,12 +38,15 @@ def parse(
     chunks = to_chunks(text)
     token_count = sum(len(c) for c in chunks)
 
-    ngram_counts = count_ngrams(chunks, taxonomy.max_term_n)
+    # Matching uses stemmed n-grams (so plurals match); keyword display uses the
+    # original surface forms from `chunks`.
+    ngram_counts = count_ngrams(stem_chunks(chunks), taxonomy.max_term_n)
     scored = classify(ngram_counts, taxonomy)
     primary, secondary = pick_primary_secondary(scored)
 
     rake_keywords = rake(chunks, load_stopwords())
     keywords = merge_keywords(rake_keywords, scored, max_keywords)
+    assign_related_emphasis(keywords, scored)
 
     confidence = primary.score if primary else 0.0
     low_confidence = primary is None or confidence < confidence_threshold
@@ -62,7 +65,13 @@ def parse(
             for s in scored
         ],
         "keywords": [
-            {"term": kw.term, "score": kw.score, "source": kw.source} for kw in keywords
+            {
+                "term": kw.term,
+                "score": kw.score,
+                "source": kw.source,
+                "related_emphasis": kw.related,
+            }
+            for kw in keywords
         ],
         "meta": {
             "token_count": token_count,

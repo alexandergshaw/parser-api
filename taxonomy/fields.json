@@ -203,5 +203,105 @@
       { "term": "ion", "weight": 2 },
       { "term": "atom", "weight": 1 }
     ]
+  },
+  {
+    "id": "statistics",
+    "label": "Statistics",
+    "aliases": ["statistical analysis", "biostatistics"],
+    "terms": [
+      { "term": "hypothesis testing", "weight": 3 },
+      { "term": "regression analysis", "weight": 3 },
+      { "term": "confidence interval", "weight": 3 },
+      { "term": "bayesian inference", "weight": 3 },
+      { "term": "p value", "weight": 3 },
+      { "term": "standard deviation", "weight": 2 },
+      { "term": "distribution", "weight": 2 },
+      { "term": "variance", "weight": 2 },
+      { "term": "correlation", "weight": 2 },
+      { "term": "sampling", "weight": 2 },
+      { "term": "statistical significance", "weight": 2 }
+    ]
+  },
+  {
+    "id": "astronomy",
+    "label": "Astronomy & Astrophysics",
+    "aliases": ["astrophysics", "cosmology"],
+    "terms": [
+      { "term": "galaxy", "weight": 3 },
+      { "term": "black hole", "weight": 3 },
+      { "term": "supernova", "weight": 3 },
+      { "term": "redshift", "weight": 3 },
+      { "term": "exoplanet", "weight": 3 },
+      { "term": "telescope", "weight": 2 },
+      { "term": "orbit", "weight": 2 },
+      { "term": "nebula", "weight": 2 },
+      { "term": "cosmic", "weight": 2 },
+      { "term": "stellar", "weight": 2 }
+    ]
+  },
+  {
+    "id": "electrical_engineering",
+    "label": "Electrical Engineering",
+    "aliases": ["electronics", "embedded systems"],
+    "terms": [
+      { "term": "circuit", "weight": 3 },
+      { "term": "voltage", "weight": 3 },
+      { "term": "transistor", "weight": 3 },
+      { "term": "semiconductor", "weight": 3 },
+      { "term": "signal processing", "weight": 3 },
+      { "term": "microcontroller", "weight": 2 },
+      { "term": "capacitor", "weight": 2 },
+      { "term": "current", "weight": 1 },
+      { "term": "resistor", "weight": 2 },
+      { "term": "fpga", "weight": 2 }
+    ]
+  },
+  {
+    "id": "mechanical_engineering",
+    "label": "Mechanical Engineering",
+    "aliases": ["mechatronics"],
+    "terms": [
+      { "term": "fluid dynamics", "weight": 3 },
+      { "term": "finite element", "weight": 3 },
+      { "term": "stress analysis", "weight": 3 },
+      { "term": "cad", "weight": 2 },
+      { "term": "torque", "weight": 2 },
+      { "term": "kinematics", "weight": 2 },
+      { "term": "actuator", "weight": 2 },
+      { "term": "heat transfer", "weight": 2 },
+      { "term": "manufacturing", "weight": 1 }
+    ]
+  },
+  {
+    "id": "economics",
+    "label": "Economics",
+    "aliases": ["econometrics", "macroeconomics"],
+    "terms": [
+      { "term": "supply and demand", "weight": 3 },
+      { "term": "elasticity", "weight": 3 },
+      { "term": "gdp", "weight": 3 },
+      { "term": "inflation", "weight": 3 },
+      { "term": "monetary policy", "weight": 3 },
+      { "term": "marginal cost", "weight": 2 },
+      { "term": "equilibrium", "weight": 2 },
+      { "term": "fiscal", "weight": 2 },
+      { "term": "utility", "weight": 1 }
+    ]
+  },
+  {
+    "id": "neuroscience",
+    "label": "Neuroscience",
+    "aliases": ["cognitive science"],
+    "terms": [
+      { "term": "neuron", "weight": 3 },
+      { "term": "synapse", "weight": 3 },
+      { "term": "neurotransmitter", "weight": 3 },
+      { "term": "cortex", "weight": 3 },
+      { "term": "action potential", "weight": 3 },
+      { "term": "brain", "weight": 1 },
+      { "term": "cognition", "weight": 2 },
+      { "term": "dopamine", "weight": 2 },
+      { "term": "neural circuit", "weight": 2 }
+    ]
   }
 ]

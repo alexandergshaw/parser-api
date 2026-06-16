@@ -1,7 +1,7 @@
 import json
 
 from parser.classify import classify, pick_primary_secondary
-from parser.normalize import count_ngrams, to_chunks
+from parser.normalize import count_ngrams, singularize, stem_chunks, to_chunks
 from parser.taxonomy import get_taxonomy, load_taxonomy
 
 DATA_ENGINEER_JD = """
@@ -17,7 +17,7 @@ with Kafka, dbt, and Snowflake is a plus.
 
 def _score(text):
     tax = get_taxonomy()
-    counts = count_ngrams(to_chunks(text), tax.max_term_n)
+    counts = count_ngrams(stem_chunks(to_chunks(text)), tax.max_term_n)
     return classify(counts, tax)
 
 
@@ -45,6 +45,24 @@ def test_scores_are_normalized_shares():
     total = sum(s.score for s in scored)
     assert 0.99 <= total <= 1.01
     assert scored == sorted(scored, key=lambda s: s.raw_score, reverse=True)
+
+
+def test_singularize_handles_plurals_and_leaves_others_alone():
+    assert singularize("networks") == "network"
+    assert singularize("pipelines") == "pipeline"
+    assert singularize("libraries") == "library"
+    assert singularize("processes") == "process"
+    # Should NOT be mangled:
+    for word in ("analysis", "status", "sql", "etl", "data", "css"):
+        assert singularize(word) == word
+
+
+def test_plural_text_matches_singular_lexicon():
+    scored = _score("We built scalable data pipelines and trained neural networks.")
+    ids = {s.id for s in scored}
+    assert "data_science" in ids  # "data pipelines" -> "data pipeline"
+    ml = next(s for s in scored if s.id == "machine_learning")
+    assert "neural network" in ml.matched_terms  # plural matched, singular displayed
 
 
 def test_idf_downweights_shared_terms(tmp_path):

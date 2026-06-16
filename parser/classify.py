@@ -20,7 +20,12 @@ class ScoredCategory:
     type: str
     score: float            # normalized share in [0, 1] across all categories
     raw_score: float        # unnormalized weighted-match score
-    matched_terms: list[str]  # evidence, strongest contribution first
+    matched_terms: list[str]  # display evidence, strongest contribution first
+    matched_keys: list[str] = None  # canonical keys behind matched_terms (for linking)
+
+    def __post_init__(self) -> None:
+        if self.matched_keys is None:
+            self.matched_keys = []
 
 
 def _term_contribution(weight: float, count: int, idf: float) -> float:
@@ -39,13 +44,13 @@ def classify(ngram_counts: Counter[str], taxonomy: Taxonomy) -> list[ScoredCateg
     for cat in taxonomy.categories:
         raw = 0.0
         contributions: list[tuple[float, str]] = []
-        for term, weight in cat.terms.items():
-            count = ngram_counts.get(term, 0)
+        for key, weight in cat.terms.items():
+            count = ngram_counts.get(key, 0)
             if count:
-                idf = taxonomy.idf.get(term, 1.0)
+                idf = taxonomy.idf.get(key, 1.0)
                 contribution = _term_contribution(weight, count, idf)
                 raw += contribution
-                contributions.append((contribution, term))
+                contributions.append((contribution, key))
         if raw <= 0:
             continue
         contributions.sort(reverse=True)
@@ -56,7 +61,8 @@ def classify(ngram_counts: Counter[str], taxonomy: Taxonomy) -> list[ScoredCateg
                 type=cat.type,
                 score=0.0,  # filled in after normalization
                 raw_score=raw,
-                matched_terms=[term for _, term in contributions],
+                matched_terms=[cat.display.get(key, key) for _, key in contributions],
+                matched_keys=[key for _, key in contributions],
             )
         )
 

@@ -188,7 +188,8 @@ function render(d) {
   html += '<h3>Specific keywords</h3><div class="chips">';
   (d.keywords || []).forEach((k) => {
     const cls = k.source === 'lexicon' ? 'lex' : (k.source === 'rake+lexicon' ? 'both' : '');
-    html += `<span class="chip ${cls}" title="${escapeHtml(k.source)}">${escapeHtml(k.term)}<span class="s">${pct(k.score)}</span></span>`;
+    const rel = k.related_emphasis ? ' · ' + k.related_emphasis : '';
+    html += `<span class="chip ${cls}" title="${escapeHtml(k.source + rel)}">${escapeHtml(k.term)}<span class="s">${pct(k.score)}</span></span>`;
   });
   html += '</div>';
 

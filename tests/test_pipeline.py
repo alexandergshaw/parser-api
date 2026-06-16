@@ -19,7 +19,13 @@ def test_response_shape_is_stable():
     assert set(r.keys()) == {"primary", "secondary", "emphases", "keywords", "meta"}
     assert set(r["meta"].keys()) == {"token_count", "confidence", "low_confidence", "version"}
     for kw in r["keywords"]:
-        assert set(kw.keys()) == {"term", "score", "source"}
+        assert set(kw.keys()) == {"term", "score", "source", "related_emphasis"}
+
+
+def test_keywords_are_linked_to_parent_emphasis():
+    r = parse(DATA_ENGINEER_JD)
+    related = {k["related_emphasis"] for k in r["keywords"]}
+    assert "Data Science" in related
 
 
 def test_unmatched_text_is_low_confidence():

@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
 
-from .normalize import normalize_term
+from .normalize import canonical_term, display_term
 
 # taxonomy/ sits next to the parser/ package at the repo root.
 _DEFAULT_DIR = Path(__file__).resolve().parent.parent / "taxonomy"
@@ -31,7 +31,8 @@ class Category:
     id: str
     label: str
     type: str  # "field" | "sector"
-    terms: dict[str, float]  # normalized term -> weight
+    terms: dict[str, float]  # canonical (stemmed) key -> weight
+    display: dict[str, str]  # canonical key -> human-facing surface form
 
 
 @dataclass
@@ -43,21 +44,29 @@ class Taxonomy:
 
 def _load_category(raw: dict, fallback_type: str) -> Category:
     terms: dict[str, float] = {}
+    display: dict[str, str] = {}
+
+    def add(text: str, weight: float) -> None:
+        key = canonical_term(text)
+        if not key:
+            return
+        terms[key] = max(terms.get(key, 0.0), weight)
+        # Prefer the shortest surface form as the display label (usually singular).
+        surface = display_term(text)
+        if key not in display or len(surface) < len(display[key]):
+            display[key] = surface
+
     for entry in raw.get("terms", []):
-        term = normalize_term(entry["term"])
-        if not term:
-            continue
-        weight = float(entry.get("weight", 1))
-        terms[term] = max(terms.get(term, 0.0), weight)
+        add(entry["term"], float(entry.get("weight", 1)))
     for alias in raw.get("aliases", []):
-        term = normalize_term(alias)
-        if term:
-            terms[term] = max(terms.get(term, 0.0), _ALIAS_WEIGHT)
+        add(alias, _ALIAS_WEIGHT)
+
     return Category(
         id=raw["id"],
         label=raw["label"],
         type=raw.get("type", fallback_type),
         terms=terms,
+        display=display,
     )
 
 

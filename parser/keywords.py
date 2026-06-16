@@ -12,6 +12,7 @@ from collections import Counter
 from dataclasses import dataclass
 
 from .classify import ScoredCategory
+from .normalize import singularize, tokenize
 
 _MIN_WORD_LEN = 2
 _MAX_PHRASE_WORDS = 4
@@ -22,6 +23,7 @@ class Keyword:
     term: str
     score: float
     source: str  # "rake" | "lexicon" | "rake+lexicon"
+    related: str | None = None  # label of the broad emphasis this keyword falls under
 
 
 def _candidate_phrases(
@@ -101,3 +103,24 @@ def merge_keywords(
 
     ranked = sorted(merged.values(), key=lambda kw: kw.score, reverse=True)
     return ranked[:max_keywords]
+
+
+def assign_related_emphasis(keywords: list[Keyword], scored: list[ScoredCategory]) -> None:
+    """Tag each keyword with the highest-ranked emphasis it shares a stem with.
+
+    This links the specific subtopics back to their broad parent label so the
+    researcher API can drive both general and deep-dive research from one response.
+    """
+    cat_tokens: list[tuple[str, set[str]]] = []
+    for cat in scored:
+        toks: set[str] = set()
+        for key in cat.matched_keys:
+            toks.update(key.split())
+        cat_tokens.append((cat.label, toks))
+
+    for kw in keywords:
+        kw_tokens = {singularize(tok) for tok in tokenize(kw.term)}
+        for label, toks in cat_tokens:
+            if kw_tokens & toks:
+                kw.related = label
+                break

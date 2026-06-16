@@ -69,9 +69,46 @@ def tokenize(text: str) -> list[str]:
     return [tok for chunk in to_chunks(text) for tok in chunk]
 
 
-def normalize_term(term: str) -> str:
-    """Normalize a lexicon term to the same space-joined token form the text uses."""
+# Suffixes that look plural but aren't, so we leave them alone: process(ss),
+# status(us), analysis/axis(is).
+_NO_STEM_SUFFIXES = ("ss", "us", "is")
+
+
+def singularize(word: str) -> str:
+    """Conservative plural -> singular stemmer (deterministic, no irregulars table).
+
+    Applied identically to text tokens and lexicon terms, so matching is symmetric
+    even when the stem looks odd (e.g. "kubernetes" -> "kubernete" on both sides).
+    """
+    if len(word) <= 3 or word.endswith(_NO_STEM_SUFFIXES):
+        return word
+    if word.endswith("ies"):
+        return word[:-3] + "y"  # libraries -> library
+    if len(word) > 4 and word.endswith(("ses", "xes", "zes", "ches", "shes")):
+        return word[:-2]  # processes -> process, matches -> match, boxes -> box
+    if word.endswith("s"):
+        return word[:-1]  # networks -> network, pipelines -> pipeline
+    return word
+
+
+def stem_chunks(chunks: list[list[str]]) -> list[list[str]]:
+    """Singularize every token, preserving chunk structure (for the matching layer)."""
+    return [[singularize(tok) for tok in chunk] for chunk in chunks]
+
+
+def display_term(term: str) -> str:
+    """Surface (un-stemmed) normalized form of a term, for human-facing output."""
     return " ".join(tokenize(term))
+
+
+def canonical_term(term: str) -> str:
+    """Stemmed normalized form of a term, used as the match key."""
+    return " ".join(singularize(tok) for tok in tokenize(term))
+
+
+def normalize_term(term: str) -> str:
+    """Back-compat alias for :func:`display_term`."""
+    return display_term(term)
 
 
 def count_ngrams(chunks: list[list[str]], n_max: int = 3) -> Counter[str]:

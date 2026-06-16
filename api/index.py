@@ -60,6 +60,7 @@ class Keyword(BaseModel):
     term: str
     score: float
     source: str
+    related_emphasis: str | None = None
 
 
 class Meta(BaseModel):

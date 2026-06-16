@@ -1,0 +1,207 @@
+[
+  {
+    "id": "data_science",
+    "label": "Data Science",
+    "aliases": ["data engineering", "data analytics"],
+    "terms": [
+      { "term": "data pipeline", "weight": 3 },
+      { "term": "etl", "weight": 3 },
+      { "term": "data warehouse", "weight": 3 },
+      { "term": "data modeling", "weight": 3 },
+      { "term": "big data", "weight": 3 },
+      { "term": "feature engineering", "weight": 3 },
+      { "term": "predictive modeling", "weight": 3 },
+      { "term": "data analysis", "weight": 2 },
+      { "term": "spark", "weight": 2 },
+      { "term": "hadoop", "weight": 2 },
+      { "term": "airflow", "weight": 2 },
+      { "term": "kafka", "weight": 2 },
+      { "term": "snowflake", "weight": 2 },
+      { "term": "pandas", "weight": 2 },
+      { "term": "numpy", "weight": 2 },
+      { "term": "dbt", "weight": 2 },
+      { "term": "data lake", "weight": 2 },
+      { "term": "statistics", "weight": 2 },
+      { "term": "sql", "weight": 2 },
+      { "term": "data", "weight": 1 },
+      { "term": "python", "weight": 1 }
+    ]
+  },
+  {
+    "id": "machine_learning",
+    "label": "Machine Learning",
+    "aliases": ["ml", "artificial intelligence", "deep learning"],
+    "terms": [
+      { "term": "machine learning", "weight": 3 },
+      { "term": "neural network", "weight": 3 },
+      { "term": "deep learning", "weight": 3 },
+      { "term": "gradient boosting", "weight": 3 },
+      { "term": "random forest", "weight": 3 },
+      { "term": "reinforcement learning", "weight": 3 },
+      { "term": "natural language processing", "weight": 3 },
+      { "term": "computer vision", "weight": 3 },
+      { "term": "model training", "weight": 2 },
+      { "term": "tensorflow", "weight": 2 },
+      { "term": "pytorch", "weight": 2 },
+      { "term": "scikit learn", "weight": 2 },
+      { "term": "classification", "weight": 2 },
+      { "term": "regression", "weight": 2 },
+      { "term": "clustering", "weight": 2 },
+      { "term": "supervised learning", "weight": 2 },
+      { "term": "embedding", "weight": 2 },
+      { "term": "transformer", "weight": 2 }
+    ]
+  },
+  {
+    "id": "software_engineering",
+    "label": "Software Engineering",
+    "aliases": ["software development", "backend engineering"],
+    "terms": [
+      { "term": "algorithms", "weight": 3 },
+      { "term": "data structures", "weight": 3 },
+      { "term": "design patterns", "weight": 3 },
+      { "term": "object oriented", "weight": 3 },
+      { "term": "microservices", "weight": 3 },
+      { "term": "rest api", "weight": 2 },
+      { "term": "api", "weight": 1 },
+      { "term": "backend", "weight": 2 },
+      { "term": "debugging", "weight": 2 },
+      { "term": "refactoring", "weight": 2 },
+      { "term": "unit testing", "weight": 2 },
+      { "term": "concurrency", "weight": 2 },
+      { "term": "compiler", "weight": 2 },
+      { "term": "java", "weight": 1 },
+      { "term": "cplusplus", "weight": 2 },
+      { "term": "git", "weight": 1 }
+    ]
+  },
+  {
+    "id": "web_development",
+    "label": "Web Development",
+    "aliases": ["frontend development", "full stack"],
+    "terms": [
+      { "term": "react", "weight": 3 },
+      { "term": "frontend", "weight": 3 },
+      { "term": "javascript", "weight": 2 },
+      { "term": "typescript", "weight": 2 },
+      { "term": "html", "weight": 2 },
+      { "term": "css", "weight": 2 },
+      { "term": "nodejs", "weight": 2 },
+      { "term": "vue", "weight": 2 },
+      { "term": "angular", "weight": 2 },
+      { "term": "responsive design", "weight": 2 },
+      { "term": "dom", "weight": 2 },
+      { "term": "web application", "weight": 2 },
+      { "term": "http", "weight": 1 }
+    ]
+  },
+  {
+    "id": "devops",
+    "label": "DevOps & Cloud Infrastructure",
+    "aliases": ["cloud engineering", "site reliability"],
+    "terms": [
+      { "term": "kubernetes", "weight": 3 },
+      { "term": "docker", "weight": 3 },
+      { "term": "terraform", "weight": 3 },
+      { "term": "infrastructure as code", "weight": 3 },
+      { "term": "container", "weight": 2 },
+      { "term": "aws", "weight": 2 },
+      { "term": "azure", "weight": 2 },
+      { "term": "gcp", "weight": 2 },
+      { "term": "monitoring", "weight": 2 },
+      { "term": "jenkins", "weight": 2 },
+      { "term": "ansible", "weight": 2 },
+      { "term": "load balancing", "weight": 2 },
+      { "term": "cloud", "weight": 1 }
+    ]
+  },
+  {
+    "id": "cybersecurity",
+    "label": "Cybersecurity",
+    "aliases": ["information security", "infosec"],
+    "terms": [
+      { "term": "penetration testing", "weight": 3 },
+      { "term": "vulnerability", "weight": 3 },
+      { "term": "cryptography", "weight": 3 },
+      { "term": "encryption", "weight": 3 },
+      { "term": "malware", "weight": 3 },
+      { "term": "threat", "weight": 2 },
+      { "term": "firewall", "weight": 2 },
+      { "term": "authentication", "weight": 2 },
+      { "term": "exploit", "weight": 2 },
+      { "term": "intrusion detection", "weight": 2 },
+      { "term": "security", "weight": 1 }
+    ]
+  },
+  {
+    "id": "physics",
+    "label": "Physics",
+    "aliases": ["theoretical physics"],
+    "terms": [
+      { "term": "quantum mechanics", "weight": 3 },
+      { "term": "relativity", "weight": 3 },
+      { "term": "thermodynamics", "weight": 3 },
+      { "term": "electromagnetism", "weight": 3 },
+      { "term": "momentum", "weight": 2 },
+      { "term": "velocity", "weight": 2 },
+      { "term": "acceleration", "weight": 2 },
+      { "term": "wavelength", "weight": 2 },
+      { "term": "particle", "weight": 2 },
+      { "term": "force", "weight": 1 },
+      { "term": "energy", "weight": 1 }
+    ]
+  },
+  {
+    "id": "mathematics",
+    "label": "Mathematics",
+    "aliases": ["pure mathematics", "applied math"],
+    "terms": [
+      { "term": "calculus", "weight": 3 },
+      { "term": "linear algebra", "weight": 3 },
+      { "term": "differential equations", "weight": 3 },
+      { "term": "theorem", "weight": 2 },
+      { "term": "derivative", "weight": 2 },
+      { "term": "integral", "weight": 2 },
+      { "term": "matrix", "weight": 2 },
+      { "term": "probability", "weight": 2 },
+      { "term": "topology", "weight": 2 },
+      { "term": "proof", "weight": 1 },
+      { "term": "equation", "weight": 1 }
+    ]
+  },
+  {
+    "id": "biology",
+    "label": "Biology",
+    "aliases": ["molecular biology", "life sciences"],
+    "terms": [
+      { "term": "photosynthesis", "weight": 3 },
+      { "term": "mitosis", "weight": 3 },
+      { "term": "dna", "weight": 3 },
+      { "term": "enzyme", "weight": 3 },
+      { "term": "evolution", "weight": 2 },
+      { "term": "organism", "weight": 2 },
+      { "term": "protein", "weight": 2 },
+      { "term": "gene", "weight": 2 },
+      { "term": "cell membrane", "weight": 2 },
+      { "term": "ecosystem", "weight": 2 },
+      { "term": "cell", "weight": 1 }
+    ]
+  },
+  {
+    "id": "chemistry",
+    "label": "Chemistry",
+    "aliases": ["organic chemistry"],
+    "terms": [
+      { "term": "chemical reaction", "weight": 3 },
+      { "term": "covalent bond", "weight": 3 },
+      { "term": "catalyst", "weight": 3 },
+      { "term": "oxidation", "weight": 3 },
+      { "term": "molecule", "weight": 2 },
+      { "term": "compound", "weight": 2 },
+      { "term": "acid", "weight": 2 },
+      { "term": "polymer", "weight": 2 },
+      { "term": "ion", "weight": 2 },
+      { "term": "atom", "weight": 1 }
+    ]
+  }
+]

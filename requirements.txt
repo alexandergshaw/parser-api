@@ -1,0 +1,5 @@
+# Runtime dependencies (installed by Vercel's @vercel/python builder).
+# Keyword extraction is pure-Python (no NLP libs) to keep the serverless
+# bundle small, dependency-free, and fast to cold-start.
+fastapi>=0.111
+pydantic>=2.7

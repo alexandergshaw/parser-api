@@ -1,0 +1,89 @@
+[
+  {
+    "id": "software_industry",
+    "label": "Software Industry",
+    "aliases": ["tech industry", "software company"],
+    "terms": [
+      { "term": "agile", "weight": 3 },
+      { "term": "scrum", "weight": 3 },
+      { "term": "sprint", "weight": 3 },
+      { "term": "ci/cd", "weight": 3 },
+      { "term": "deployment", "weight": 2 },
+      { "term": "code review", "weight": 2 },
+      { "term": "version control", "weight": 2 },
+      { "term": "product roadmap", "weight": 2 },
+      { "term": "saas", "weight": 2 },
+      { "term": "startup", "weight": 2 },
+      { "term": "engineering team", "weight": 2 },
+      { "term": "stakeholders", "weight": 1 },
+      { "term": "release", "weight": 1 }
+    ]
+  },
+  {
+    "id": "academia",
+    "label": "Academia & Education",
+    "aliases": ["higher education", "university"],
+    "terms": [
+      { "term": "lecture", "weight": 3 },
+      { "term": "curriculum", "weight": 3 },
+      { "term": "thesis", "weight": 3 },
+      { "term": "professor", "weight": 3 },
+      { "term": "semester", "weight": 2 },
+      { "term": "coursework", "weight": 2 },
+      { "term": "homework", "weight": 2 },
+      { "term": "exam", "weight": 2 },
+      { "term": "textbook", "weight": 2 },
+      { "term": "student", "weight": 1 },
+      { "term": "course", "weight": 1 },
+      { "term": "study", "weight": 1 }
+    ]
+  },
+  {
+    "id": "research",
+    "label": "Research & Development",
+    "aliases": ["r&d", "scientific research"],
+    "terms": [
+      { "term": "hypothesis", "weight": 3 },
+      { "term": "peer review", "weight": 3 },
+      { "term": "methodology", "weight": 3 },
+      { "term": "experiment", "weight": 2 },
+      { "term": "laboratory", "weight": 2 },
+      { "term": "publication", "weight": 2 },
+      { "term": "empirical", "weight": 2 },
+      { "term": "findings", "weight": 1 },
+      { "term": "analysis", "weight": 1 }
+    ]
+  },
+  {
+    "id": "healthcare",
+    "label": "Healthcare",
+    "aliases": ["medical", "clinical"],
+    "terms": [
+      { "term": "patient", "weight": 3 },
+      { "term": "clinical trial", "weight": 3 },
+      { "term": "diagnosis", "weight": 3 },
+      { "term": "treatment", "weight": 2 },
+      { "term": "hospital", "weight": 2 },
+      { "term": "therapy", "weight": 2 },
+      { "term": "nursing", "weight": 2 },
+      { "term": "medication", "weight": 2 },
+      { "term": "healthcare", "weight": 1 }
+    ]
+  },
+  {
+    "id": "finance",
+    "label": "Finance",
+    "aliases": ["financial services", "fintech"],
+    "terms": [
+      { "term": "portfolio", "weight": 3 },
+      { "term": "investment", "weight": 3 },
+      { "term": "equity", "weight": 3 },
+      { "term": "trading", "weight": 2 },
+      { "term": "risk management", "weight": 2 },
+      { "term": "valuation", "weight": 2 },
+      { "term": "hedge fund", "weight": 2 },
+      { "term": "asset", "weight": 1 },
+      { "term": "market", "weight": 1 }
+    ]
+  }
+]

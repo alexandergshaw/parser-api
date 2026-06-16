@@ -303,5 +303,31 @@
       { "term": "dopamine", "weight": 2 },
       { "term": "neural circuit", "weight": 2 }
     ]
+  },
+  {
+    "id": "business_management",
+    "label": "Business & Management",
+    "aliases": ["business administration", "management"],
+    "terms": [
+      { "term": "business management", "weight": 3 },
+      { "term": "business strategy", "weight": 3 },
+      { "term": "operations management", "weight": 3 },
+      { "term": "project management", "weight": 3 },
+      { "term": "product management", "weight": 3 },
+      { "term": "business development", "weight": 3 },
+      { "term": "entrepreneurship", "weight": 3 },
+      { "term": "leadership", "weight": 2 },
+      { "term": "supply chain", "weight": 2 },
+      { "term": "marketing", "weight": 2 },
+      { "term": "procurement", "weight": 2 },
+      { "term": "negotiation", "weight": 2 },
+      { "term": "stakeholder", "weight": 2 },
+      { "term": "human resources", "weight": 2 },
+      { "term": "kpi", "weight": 2, "display": "KPI" },
+      { "term": "roi", "weight": 2, "display": "ROI" },
+      { "term": "consulting", "weight": 1 },
+      { "term": "management", "weight": 1 },
+      { "term": "business", "weight": 1 }
+    ]
   }
 ]

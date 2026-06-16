@@ -32,6 +32,16 @@ def test_keywords_are_linked_to_parent_emphasis():
     assert "Data Science" in related
 
 
+def test_business_posting_gets_business_field():
+    text = (
+        "Introduction to Business and Management. Fundamental concepts of business "
+        "management and leadership, business strategy, and operations management."
+    )
+    r = parse(text)
+    labels = {e["label"] for e in r["emphases"]}
+    assert "Business & Management" in labels
+
+
 def test_unmatched_text_is_low_confidence():
     r = parse("the and or but if then of to")
     assert r["primary"] is None

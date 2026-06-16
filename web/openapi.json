@@ -3,7 +3,7 @@
   "info": {
     "title": "Parser API",
     "description": "Deterministic, LLM-free extraction of a text's broad emphases (curated taxonomy + lexicon scoring) and specific subtopics/keywords (RAKE).",
-    "version": "0.3.2"
+    "version": "0.3.3"
   },
   "paths": {
     "/api/health": {

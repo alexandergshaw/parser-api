@@ -17,8 +17,24 @@ from pathlib import Path
 
 from .normalize import canonical_term, display_term, title_case
 
-# taxonomy/ sits next to the parser/ package at the repo root.
-_DEFAULT_DIR = Path(__file__).resolve().parent.parent / "taxonomy"
+# taxonomy/ sits next to the parser/ package at the repo root. The function's
+# working directory / bundle layout can vary on Vercel, so probe likely roots.
+_CANDIDATE_ROOTS = [
+    Path(__file__).resolve().parent.parent,  # repo root (parser/..)
+    Path.cwd(),
+    Path("/var/task"),                        # Vercel / Lambda task root
+]
+
+
+def _default_dir() -> Path:
+    env = os.environ.get("TAXONOMY_DIR")
+    if env:
+        return Path(env)
+    for root in _CANDIDATE_ROOTS:
+        candidate = root / "taxonomy"
+        if candidate.is_dir():
+            return candidate
+    return _CANDIDATE_ROOTS[0] / "taxonomy"
 
 # Aliases are alternative names for the whole category, so they're a strong signal.
 _ALIAS_WEIGHT = 3.0
@@ -84,7 +100,7 @@ def _load_category(raw: dict, fallback_type: str) -> Category:
 
 def load_taxonomy(directory: Path | str | None = None) -> Taxonomy:
     """Build a Taxonomy from the JSON files in ``directory`` (uncached)."""
-    base = Path(directory) if directory else Path(os.environ.get("TAXONOMY_DIR", _DEFAULT_DIR))
+    base = Path(directory) if directory else _default_dir()
     categories: list[Category] = []
     for path in sorted(base.glob("*.json")):
         fallback_type = path.stem.rstrip("s")  # fields.json -> "field"

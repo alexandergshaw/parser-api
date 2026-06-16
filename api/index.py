@@ -22,9 +22,25 @@ from parser import __version__, parse
 from parser.pipeline import DEFAULT_CONFIDENCE_THRESHOLD, DEFAULT_MAX_KEYWORDS
 from parser.taxonomy import get_taxonomy
 
-_ROOT = Path(__file__).resolve().parent.parent
-_UI_PATH = _ROOT / "public" / "index.html"
-_OPENAPI_PATH = _ROOT / "public" / "openapi.json"
+# On Vercel the function's working directory and bundled-file layout can vary, so
+# resolve bundled assets by probing the likely roots rather than assuming one.
+_CANDIDATE_ROOTS = [
+    Path(__file__).resolve().parent.parent,  # repo root (api/..)
+    Path.cwd(),
+    Path("/var/task"),                        # Vercel / Lambda task root
+]
+
+
+def _asset(rel: str) -> Path:
+    for root in _CANDIDATE_ROOTS:
+        candidate = root / rel
+        if candidate.exists():
+            return candidate
+    return _CANDIDATE_ROOTS[0] / rel
+
+
+_UI_PATH = _asset("public/index.html")
+_OPENAPI_PATH = _asset("public/openapi.json")
 
 MAX_TEXT_CHARS = 50_000
 API_KEY = os.environ.get("API_KEY", "").strip()

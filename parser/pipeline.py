@@ -17,6 +17,7 @@ def _emphasis_dict(cat: ScoredCategory | None, max_terms: int = 8) -> dict[str, 
     if cat is None:
         return None
     return {
+        "id": cat.id,
         "label": cat.label,
         "type": cat.type,
         "score": cat.score,

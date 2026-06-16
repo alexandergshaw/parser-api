@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import sys
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 # Ensure the repo root is importable so the top-level `parser` package resolves
@@ -46,14 +47,11 @@ class ParseRequest(BaseModel):
 
 
 class Emphasis(BaseModel):
+    id: str
     label: str
     type: str
     score: float
     matched_terms: list[str]
-
-
-class RankedEmphasis(Emphasis):
-    id: str
 
 
 class Keyword(BaseModel):
@@ -61,6 +59,18 @@ class Keyword(BaseModel):
     score: float
     source: str
     related_emphasis: str | None = None
+
+
+class CategoryInfo(BaseModel):
+    id: str
+    label: str
+    type: str
+
+
+class TaxonomyResponse(BaseModel):
+    version: str
+    count: int
+    categories: list[CategoryInfo]
 
 
 class Meta(BaseModel):
@@ -73,15 +83,23 @@ class Meta(BaseModel):
 class ParseResponse(BaseModel):
     primary: Emphasis | None
     secondary: Emphasis | None
-    emphases: list[RankedEmphasis]
+    emphases: list[Emphasis]
     keywords: list[Keyword]
     meta: Meta
 
 
 # --------------------------------------------------------------------------- app
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    # Build + cache the taxonomy at cold start so the first request is fast.
+    get_taxonomy()
+    yield
+
+
 app = FastAPI(
     title="Parser API",
     version=__version__,
+    lifespan=lifespan,
     description=(
         "Deterministic, LLM-free extraction of a text's broad emphases (curated "
         "taxonomy + lexicon scoring) and specific subtopics/keywords (RAKE)."
@@ -103,16 +121,21 @@ def require_api_key(x_api_key: str | None = Header(default=None)) -> None:
         raise HTTPException(status_code=401, detail="Invalid or missing API key.")
 
 
-@app.on_event("startup")
-def _warm_taxonomy() -> None:
-    # Build + cache the taxonomy at cold start so the first request is fast.
-    get_taxonomy()
-
-
 @app.get("/api/health")
 def health() -> dict[str, object]:
     tax = get_taxonomy()
     return {"status": "ok", "version": __version__, "categories": len(tax.categories)}
+
+
+@app.get("/api/taxonomy", response_model=TaxonomyResponse)
+def taxonomy() -> dict:
+    """Enumerate the controlled vocabulary so consumers can discover it dynamically."""
+    tax = get_taxonomy()
+    categories = sorted(
+        ({"id": c.id, "label": c.label, "type": c.type} for c in tax.categories),
+        key=lambda c: (c["type"], c["label"]),
+    )
+    return {"version": __version__, "count": len(categories), "categories": categories}
 
 
 @app.post("/api/parse", response_model=ParseResponse, dependencies=[Depends(require_api_key)])

@@ -55,6 +55,13 @@ pytest                          # run the test suite
 
 ## API
 
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `POST` | `/api/parse` | Parse text → emphases + keywords |
+| `GET` | `/api/health` | Liveness, version, taxonomy size |
+| `GET` | `/api/taxonomy` | Enumerate the controlled vocabulary (`{id, label, type}`) |
+| `GET` | `/docs`, `/openapi.json` | Interactive docs + machine-readable schema |
+
 `POST /api/parse`
 
 ```jsonc
@@ -63,15 +70,15 @@ pytest                          # run the test suite
 
 // Response 200
 {
-  "primary":   { "label": "Data Science", "type": "field", "score": 0.82,
+  "primary":   { "id": "data_science", "label": "Data Science", "type": "field", "score": 0.82,
                  "matched_terms": ["machine learning", "etl", "data pipeline"] },
-  "secondary": { "label": "Software Industry", "type": "sector", "score": 0.54,
-                 "matched_terms": ["agile", "ci/cd"] },
+  "secondary": { "id": "software_industry", "label": "Software Industry", "type": "sector",
+                 "score": 0.54, "matched_terms": ["agile", "ci/cd"] },
   "emphases":  [ /* full ranked list */ ],
   "keywords":  [ { "term": "gradient boosting", "score": 0.91, "source": "rake",
                   "related_emphasis": "Machine Learning" } ],
   "meta":      { "token_count": 412, "confidence": 0.82, "low_confidence": false,
-                 "version": "0.1.0" }
+                 "version": "0.2.1" }
 }
 ```
 

@@ -5,8 +5,10 @@ from tests.test_classify import DATA_ENGINEER_JD
 def test_data_engineer_end_to_end():
     r = parse(DATA_ENGINEER_JD)
     assert r["primary"]["label"] == "Data Science"
+    assert r["primary"]["id"] == "data_science"
     assert r["primary"]["type"] == "field"
     assert r["secondary"]["label"] == "Software Industry"
+    assert r["secondary"]["id"] == "software_industry"
     assert r["meta"]["low_confidence"] is False
     assert len(r["keywords"]) > 0
     # Keywords feed the researcher API: should surface specific data terms.

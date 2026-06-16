@@ -42,6 +42,22 @@ def test_no_taxonomy_match_returns_empty():
     assert _score("the quick brown fox jumped over the lazy dog") == []
 
 
+def test_lone_ambiguous_word_does_not_create_emphasis():
+    # A business/academia posting must NOT surface Physics/EE just because it
+    # contains generic words like "energy" or "current".
+    text = (
+        "Adjunct faculty to teach business courses. Engage students with genuine energy "
+        "and enthusiasm; demonstrate current subject-matter expertise; professor role in "
+        "higher education."
+    )
+    scored = _score(text)
+    labels = {s.label for s in scored}
+    assert "Physics" not in labels
+    assert "Electrical Engineering" not in labels
+    primary, secondary = pick_primary_secondary(scored)
+    assert primary is not None and primary.id == "academia"
+
+
 def test_scores_are_normalized_shares():
     scored = _score(DATA_ENGINEER_JD)
     total = sum(s.score for s in scored)

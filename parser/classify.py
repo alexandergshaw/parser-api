@@ -31,6 +31,12 @@ class ScoredCategory:
             self.matched_surfaces = []
 
 
+# A category whose entire evidence is a single low-weight (ambiguous, common-word)
+# term is treated as noise, not an emphasis. Qualifying requires >=2 matched terms
+# or at least one specific term at this weight.
+_MIN_STRONG_WEIGHT = 2.0
+
+
 def _term_contribution(weight: float, count: int, idf: float) -> float:
     # Sub-linear in count so a term repeated 50x doesn't dominate; weight x IDF
     # scale strong/specific signals above ambiguous ones.
@@ -47,6 +53,7 @@ def classify(ngram_counts: Counter[str], taxonomy: Taxonomy) -> list[ScoredCateg
     for cat in taxonomy.categories:
         raw = 0.0
         contributions: list[tuple[float, str]] = []
+        max_weight = 0.0
         for key, weight in cat.terms.items():
             count = ngram_counts.get(key, 0)
             if count:
@@ -54,7 +61,11 @@ def classify(ngram_counts: Counter[str], taxonomy: Taxonomy) -> list[ScoredCateg
                 contribution = _term_contribution(weight, count, idf)
                 raw += contribution
                 contributions.append((contribution, key))
+                max_weight = max(max_weight, weight)
         if raw <= 0:
+            continue
+        # Drop noise: a lone ambiguous (low-weight) term is not a real emphasis.
+        if len(contributions) < 2 and max_weight < _MIN_STRONG_WEIGHT:
             continue
         contributions.sort(reverse=True)
         scored.append(

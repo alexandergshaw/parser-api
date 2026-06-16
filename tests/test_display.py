@@ -59,4 +59,4 @@ def test_backward_compatible_fields_unchanged():
         assert 0.0 <= kw["score"] <= 1.0
     # meta shape is unchanged
     assert set(r["meta"].keys()) == {"token_count", "confidence", "low_confidence", "version"}
-    assert r["meta"]["version"] == "0.3.1"
+    assert r["meta"]["version"] == "0.3.2"

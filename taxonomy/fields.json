@@ -147,8 +147,8 @@
       { "term": "acceleration", "weight": 2 },
       { "term": "wavelength", "weight": 2 },
       { "term": "particle", "weight": 2 },
-      { "term": "force", "weight": 1 },
-      { "term": "energy", "weight": 1 }
+      { "term": "kinetic energy", "weight": 2 },
+      { "term": "potential energy", "weight": 2 }
     ]
   },
   {
@@ -251,7 +251,7 @@
       { "term": "signal processing", "weight": 3 },
       { "term": "microcontroller", "weight": 2 },
       { "term": "capacitor", "weight": 2 },
-      { "term": "current", "weight": 1 },
+      { "term": "electric current", "weight": 2 },
       { "term": "resistor", "weight": 2 },
       { "term": "fpga", "weight": 2, "display": "FPGA" }
     ]

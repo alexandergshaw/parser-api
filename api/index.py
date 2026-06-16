@@ -39,8 +39,10 @@ def _asset(rel: str) -> Path:
     return _CANDIDATE_ROOTS[0] / rel
 
 
-_UI_PATH = _asset("public/index.html")
-_OPENAPI_PATH = _asset("public/openapi.json")
+# NB: assets live in web/ (NOT public/) — Vercel reserves public/ for static
+# output and excludes it from the serverless function bundle.
+_UI_PATH = _asset("web/index.html")
+_OPENAPI_PATH = _asset("web/openapi.json")
 
 MAX_TEXT_CHARS = 50_000
 API_KEY = os.environ.get("API_KEY", "").strip()

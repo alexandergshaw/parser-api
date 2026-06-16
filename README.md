@@ -43,7 +43,7 @@ text ──► normalize (tokenize, 1–3-grams)
 | `api/index.py` | Flask app — Vercel entrypoint, `/api/parse`, serves the testing UI at `/` |
 | `parser/` | Framework-agnostic core library (unit-testable without HTTP) |
 | `taxonomy/` | `fields.json` + `sectors.json` — the curated lexicons |
-| `public/index.html` | Vanilla-JS testing UI |
+| `web/index.html` | Vanilla-JS testing UI (served by the function; not in reserved `public/`) |
 | `tests/` | pytest suite incl. the data-engineer acceptance test |
 
 ## Local development

@@ -6,7 +6,7 @@ from typing import Any
 
 from .classify import ScoredCategory, classify, pick_primary_secondary
 from .keywords import assign_related_emphasis, merge_keywords, rake
-from .normalize import count_ngrams, load_stopwords, stem_chunks, to_chunks
+from .normalize import build_surface_index, count_ngrams, load_stopwords, stem_chunks, to_chunks
 from .taxonomy import Taxonomy, get_taxonomy
 
 DEFAULT_MAX_KEYWORDS = 15
@@ -45,7 +45,7 @@ def parse(
     scored = classify(ngram_counts, taxonomy)
     primary, secondary = pick_primary_secondary(scored)
 
-    rake_keywords = rake(chunks, load_stopwords())
+    rake_keywords = rake(chunks, load_stopwords(), build_surface_index(text))
     keywords = merge_keywords(rake_keywords, scored, max_keywords)
     assign_related_emphasis(keywords, scored)
 
@@ -68,9 +68,11 @@ def parse(
         "keywords": [
             {
                 "term": kw.term,
+                "display": kw.display,
                 "score": kw.score,
                 "source": kw.source,
                 "related_emphasis": kw.related,
+                "related_emphasis_id": kw.related_id,
             }
             for kw in keywords
         ],

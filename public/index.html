@@ -189,7 +189,7 @@ function render(d) {
   (d.keywords || []).forEach((k) => {
     const cls = k.source === 'lexicon' ? 'lex' : (k.source === 'rake+lexicon' ? 'both' : '');
     const rel = k.related_emphasis ? ' · ' + k.related_emphasis : '';
-    html += `<span class="chip ${cls}" title="${escapeHtml(k.source + rel)}">${escapeHtml(k.term)}<span class="s">${pct(k.score)}</span></span>`;
+    html += `<span class="chip ${cls}" title="${escapeHtml(k.source + rel)}">${escapeHtml(k.display || k.term)}<span class="s">${pct(k.score)}</span></span>`;
   });
   html += '</div>';
 

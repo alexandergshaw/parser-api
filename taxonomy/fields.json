@@ -5,7 +5,7 @@
     "aliases": ["data engineering", "data analytics"],
     "terms": [
       { "term": "data pipeline", "weight": 3 },
-      { "term": "etl", "weight": 3 },
+      { "term": "etl", "weight": 3, "display": "ETL" },
       { "term": "data warehouse", "weight": 3 },
       { "term": "data modeling", "weight": 3 },
       { "term": "big data", "weight": 3 },
@@ -18,13 +18,13 @@
       { "term": "kafka", "weight": 2 },
       { "term": "snowflake", "weight": 2 },
       { "term": "pandas", "weight": 2 },
-      { "term": "numpy", "weight": 2 },
-      { "term": "dbt", "weight": 2 },
+      { "term": "numpy", "weight": 2, "display": "NumPy" },
+      { "term": "dbt", "weight": 2, "display": "dbt" },
       { "term": "data lake", "weight": 2 },
       { "term": "statistics", "weight": 2 },
-      { "term": "sql", "weight": 2 },
+      { "term": "sql", "weight": 2, "display": "SQL" },
       { "term": "data", "weight": 1 },
-      { "term": "python", "weight": 1 }
+      { "term": "python", "weight": 1, "display": "Python" }
     ]
   },
   {
@@ -41,9 +41,9 @@
       { "term": "natural language processing", "weight": 3 },
       { "term": "computer vision", "weight": 3 },
       { "term": "model training", "weight": 2 },
-      { "term": "tensorflow", "weight": 2 },
-      { "term": "pytorch", "weight": 2 },
-      { "term": "scikit learn", "weight": 2 },
+      { "term": "tensorflow", "weight": 2, "display": "TensorFlow" },
+      { "term": "pytorch", "weight": 2, "display": "PyTorch" },
+      { "term": "scikit learn", "weight": 2, "display": "scikit-learn" },
       { "term": "classification", "weight": 2 },
       { "term": "regression", "weight": 2 },
       { "term": "clustering", "weight": 2 },
@@ -62,8 +62,8 @@
       { "term": "design patterns", "weight": 3 },
       { "term": "object oriented", "weight": 3 },
       { "term": "microservices", "weight": 3 },
-      { "term": "rest api", "weight": 2 },
-      { "term": "api", "weight": 1 },
+      { "term": "rest api", "weight": 2, "display": "REST API" },
+      { "term": "api", "weight": 1, "display": "API" },
       { "term": "backend", "weight": 2 },
       { "term": "debugging", "weight": 2 },
       { "term": "refactoring", "weight": 2 },
@@ -71,8 +71,8 @@
       { "term": "concurrency", "weight": 2 },
       { "term": "compiler", "weight": 2 },
       { "term": "java", "weight": 1 },
-      { "term": "cplusplus", "weight": 2 },
-      { "term": "git", "weight": 1 }
+      { "term": "cplusplus", "weight": 2, "display": "C++" },
+      { "term": "git", "weight": 1, "display": "Git" }
     ]
   },
   {
@@ -80,19 +80,19 @@
     "label": "Web Development",
     "aliases": ["frontend development", "full stack"],
     "terms": [
-      { "term": "react", "weight": 3 },
+      { "term": "react", "weight": 3, "display": "React" },
       { "term": "frontend", "weight": 3 },
-      { "term": "javascript", "weight": 2 },
-      { "term": "typescript", "weight": 2 },
-      { "term": "html", "weight": 2 },
-      { "term": "css", "weight": 2 },
-      { "term": "nodejs", "weight": 2 },
-      { "term": "vue", "weight": 2 },
-      { "term": "angular", "weight": 2 },
+      { "term": "javascript", "weight": 2, "display": "JavaScript" },
+      { "term": "typescript", "weight": 2, "display": "TypeScript" },
+      { "term": "html", "weight": 2, "display": "HTML" },
+      { "term": "css", "weight": 2, "display": "CSS" },
+      { "term": "nodejs", "weight": 2, "display": "Node.js" },
+      { "term": "vue", "weight": 2, "display": "Vue" },
+      { "term": "angular", "weight": 2, "display": "Angular" },
       { "term": "responsive design", "weight": 2 },
-      { "term": "dom", "weight": 2 },
+      { "term": "dom", "weight": 2, "display": "DOM" },
       { "term": "web application", "weight": 2 },
-      { "term": "http", "weight": 1 }
+      { "term": "http", "weight": 1, "display": "HTTP" }
     ]
   },
   {
@@ -100,17 +100,17 @@
     "label": "DevOps & Cloud Infrastructure",
     "aliases": ["cloud engineering", "site reliability"],
     "terms": [
-      { "term": "kubernetes", "weight": 3 },
-      { "term": "docker", "weight": 3 },
-      { "term": "terraform", "weight": 3 },
+      { "term": "kubernetes", "weight": 3, "display": "Kubernetes" },
+      { "term": "docker", "weight": 3, "display": "Docker" },
+      { "term": "terraform", "weight": 3, "display": "Terraform" },
       { "term": "infrastructure as code", "weight": 3 },
       { "term": "container", "weight": 2 },
-      { "term": "aws", "weight": 2 },
-      { "term": "azure", "weight": 2 },
-      { "term": "gcp", "weight": 2 },
+      { "term": "aws", "weight": 2, "display": "AWS" },
+      { "term": "azure", "weight": 2, "display": "Azure" },
+      { "term": "gcp", "weight": 2, "display": "GCP" },
       { "term": "monitoring", "weight": 2 },
-      { "term": "jenkins", "weight": 2 },
-      { "term": "ansible", "weight": 2 },
+      { "term": "jenkins", "weight": 2, "display": "Jenkins" },
+      { "term": "ansible", "weight": 2, "display": "Ansible" },
       { "term": "load balancing", "weight": 2 },
       { "term": "cloud", "weight": 1 }
     ]
@@ -176,7 +176,7 @@
     "terms": [
       { "term": "photosynthesis", "weight": 3 },
       { "term": "mitosis", "weight": 3 },
-      { "term": "dna", "weight": 3 },
+      { "term": "dna", "weight": 3, "display": "DNA" },
       { "term": "enzyme", "weight": 3 },
       { "term": "evolution", "weight": 2 },
       { "term": "organism", "weight": 2 },
@@ -212,8 +212,8 @@
       { "term": "hypothesis testing", "weight": 3 },
       { "term": "regression analysis", "weight": 3 },
       { "term": "confidence interval", "weight": 3 },
-      { "term": "bayesian inference", "weight": 3 },
-      { "term": "p value", "weight": 3 },
+      { "term": "bayesian inference", "weight": 3, "display": "Bayesian inference" },
+      { "term": "p value", "weight": 3, "display": "p-value" },
       { "term": "standard deviation", "weight": 2 },
       { "term": "distribution", "weight": 2 },
       { "term": "variance", "weight": 2 },
@@ -253,7 +253,7 @@
       { "term": "capacitor", "weight": 2 },
       { "term": "current", "weight": 1 },
       { "term": "resistor", "weight": 2 },
-      { "term": "fpga", "weight": 2 }
+      { "term": "fpga", "weight": 2, "display": "FPGA" }
     ]
   },
   {
@@ -264,7 +264,7 @@
       { "term": "fluid dynamics", "weight": 3 },
       { "term": "finite element", "weight": 3 },
       { "term": "stress analysis", "weight": 3 },
-      { "term": "cad", "weight": 2 },
+      { "term": "cad", "weight": 2, "display": "CAD" },
       { "term": "torque", "weight": 2 },
       { "term": "kinematics", "weight": 2 },
       { "term": "actuator", "weight": 2 },
@@ -279,7 +279,7 @@
     "terms": [
       { "term": "supply and demand", "weight": 3 },
       { "term": "elasticity", "weight": 3 },
-      { "term": "gdp", "weight": 3 },
+      { "term": "gdp", "weight": 3, "display": "GDP" },
       { "term": "inflation", "weight": 3 },
       { "term": "monetary policy", "weight": 3 },
       { "term": "marginal cost", "weight": 2 },

@@ -21,7 +21,9 @@ def test_response_shape_is_stable():
     assert set(r.keys()) == {"primary", "secondary", "emphases", "keywords", "meta"}
     assert set(r["meta"].keys()) == {"token_count", "confidence", "low_confidence", "version"}
     for kw in r["keywords"]:
-        assert set(kw.keys()) == {"term", "score", "source", "related_emphasis"}
+        assert set(kw.keys()) == {
+            "term", "display", "score", "source", "related_emphasis", "related_emphasis_id"
+        }
 
 
 def test_keywords_are_linked_to_parent_emphasis():

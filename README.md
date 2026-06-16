@@ -29,8 +29,12 @@ text ──► normalize (tokenize, 1–3-grams)
   cold-starts fast.
 - **Light stemming** on the matching layer so plurals match (`data pipelines` → `data pipeline`),
   while keywords keep their natural surface form for display.
-- **Keywords are linked to their parent emphasis** via `related_emphasis`, so the researcher API can
-  drive both broad and deep-dive research from a single response.
+- **Keywords are linked to their parent emphasis** via `related_emphasis` (label) and
+  `related_emphasis_id` (stable id), so consumers can drive both broad and deep-dive research.
+- **Human-facing casing** on every keyword: `term` stays lowercased for stable joins/dedup, while
+  `display` carries authored casing for acronyms/special forms (`ETL`, `CI/CD`, `Node.js`) or the
+  most-frequent source casing for free-text phrases. The same authored casing is used in
+  `matched_terms`.
 
 ## Project layout
 
@@ -75,10 +79,11 @@ pytest                          # run the test suite
   "secondary": { "id": "software_industry", "label": "Software Industry", "type": "sector",
                  "score": 0.54, "matched_terms": ["agile", "ci/cd"] },
   "emphases":  [ /* full ranked list */ ],
-  "keywords":  [ { "term": "gradient boosting", "score": 0.91, "source": "rake",
-                  "related_emphasis": "Machine Learning" } ],
+  "keywords":  [ { "term": "gradient boosting", "display": "Gradient Boosting", "score": 0.91,
+                  "source": "rake", "related_emphasis": "Machine Learning",
+                  "related_emphasis_id": "machine_learning" } ],
   "meta":      { "token_count": 412, "confidence": 0.82, "low_confidence": false,
-                 "version": "0.2.1" }
+                 "version": "0.3.0" }
 }
 ```
 

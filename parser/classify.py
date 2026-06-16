@@ -20,12 +20,15 @@ class ScoredCategory:
     type: str
     score: float            # normalized share in [0, 1] across all categories
     raw_score: float        # unnormalized weighted-match score
-    matched_terms: list[str]  # display evidence, strongest contribution first
-    matched_keys: list[str] = None  # canonical keys behind matched_terms (for linking)
+    matched_terms: list[str]  # authored display evidence, strongest contribution first
+    matched_keys: list[str] = None    # canonical (stemmed) keys, aligned (for linking)
+    matched_surfaces: list[str] = None  # lowercased un-stemmed forms, aligned (join keys)
 
     def __post_init__(self) -> None:
         if self.matched_keys is None:
             self.matched_keys = []
+        if self.matched_surfaces is None:
+            self.matched_surfaces = []
 
 
 def _term_contribution(weight: float, count: int, idf: float) -> float:
@@ -63,6 +66,7 @@ def classify(ngram_counts: Counter[str], taxonomy: Taxonomy) -> list[ScoredCateg
                 raw_score=raw,
                 matched_terms=[cat.display.get(key, key) for _, key in contributions],
                 matched_keys=[key for _, key in contributions],
+                matched_surfaces=[cat.surface.get(key, key) for _, key in contributions],
             )
         )
 

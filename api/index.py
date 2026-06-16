@@ -56,9 +56,11 @@ class Emphasis(BaseModel):
 
 class Keyword(BaseModel):
     term: str
+    display: str | None = None
     score: float
     source: str
     related_emphasis: str | None = None
+    related_emphasis_id: str | None = None
 
 
 class CategoryInfo(BaseModel):

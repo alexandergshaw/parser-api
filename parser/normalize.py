@@ -120,3 +120,66 @@ def count_ngrams(chunks: list[list[str]], n_max: int = 3) -> Counter[str]:
             for i in range(length - n + 1):
                 counts[" ".join(tokens[i : i + n])] += 1
     return counts
+
+
+def title_case(text: str) -> str:
+    """Deterministic title-case fallback for display, e.g. 'data warehouse' -> 'Data Warehouse'."""
+    return " ".join(word.capitalize() for word in text.split())
+
+
+# Case-insensitive variants of the symbol substitutions, mapping each match to its
+# canonical token. Used to recover human-facing casing (e.g. "CI/CD") for display.
+_SURFACE_SUBS: list[tuple[re.Pattern[str], str]] = [
+    (re.compile(r"c\+\+", re.IGNORECASE), "cplusplus"),
+    (re.compile(r"f#", re.IGNORECASE), "fsharp"),
+    (re.compile(r"c#", re.IGNORECASE), "csharp"),
+    (re.compile(r"\.net\b", re.IGNORECASE), "dotnet"),
+    (re.compile(r"node\.js", re.IGNORECASE), "nodejs"),
+    (re.compile(r"ci\s*/\s*cd", re.IGNORECASE), "cicd"),
+]
+
+
+def _iter_surface_tokens(text: str):
+    """Yield (canonical_token, original_surface) pairs in source order.
+
+    Canonical tokens match those produced by :func:`to_chunks` (lowercased, with the
+    same symbol substitutions), while the surface is the text exactly as written.
+    """
+    i, n = 0, len(text)
+    while i < n:
+        for pattern, canonical in _SURFACE_SUBS:
+            m = pattern.match(text, i)
+            if m:
+                yield canonical, m.group()
+                i = m.end()
+                break
+        else:
+            ch = text[i]
+            if ch.isalnum():
+                j = i
+                while j < n and text[j].isalnum():
+                    j += 1
+                yield text[i:j].lower(), text[i:j]
+                i = j
+            else:
+                i += 1
+
+
+def build_surface_index(text: str) -> dict[str, str]:
+    """Map each canonical token to its most frequent surface form (tie-break: first seen).
+
+    Deterministic: depends only on the input text. Used to render RAKE keyphrases with
+    the casing they had in the source.
+    """
+    counts: dict[str, Counter[str]] = {}
+    first_seen: dict[tuple[str, str], int] = {}
+    for idx, (canonical, surface) in enumerate(_iter_surface_tokens(text)):
+        counts.setdefault(canonical, Counter())[surface] += 1
+        first_seen.setdefault((canonical, surface), idx)
+    index: dict[str, str] = {}
+    for canonical, surfaces in counts.items():
+        index[canonical] = max(
+            surfaces.items(),
+            key=lambda kv: (kv[1], -first_seen[(canonical, kv[0])]),
+        )[0]
+    return index

@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
 
-from .normalize import canonical_term, display_term
+from .normalize import canonical_term, display_term, title_case
 
 # taxonomy/ sits next to the parser/ package at the repo root.
 _DEFAULT_DIR = Path(__file__).resolve().parent.parent / "taxonomy"
@@ -32,7 +32,8 @@ class Category:
     label: str
     type: str  # "field" | "sector"
     terms: dict[str, float]  # canonical (stemmed) key -> weight
-    display: dict[str, str]  # canonical key -> human-facing surface form
+    display: dict[str, str]  # canonical key -> authored human-facing form ("ETL", "CI/CD")
+    surface: dict[str, str]  # canonical key -> lowercased un-stemmed form (stable join key)
 
 
 @dataclass
@@ -44,22 +45,32 @@ class Taxonomy:
 
 def _load_category(raw: dict, fallback_type: str) -> Category:
     terms: dict[str, float] = {}
-    display: dict[str, str] = {}
+    surface: dict[str, str] = {}   # canonical key -> shortest lowercased surface
+    authored: dict[str, str] = {}  # canonical key -> explicit display, if any
 
-    def add(text: str, weight: float) -> None:
+    def add(text: str, weight: float, display: str | None = None) -> None:
         key = canonical_term(text)
         if not key:
             return
         terms[key] = max(terms.get(key, 0.0), weight)
-        # Prefer the shortest surface form as the display label (usually singular).
-        surface = display_term(text)
-        if key not in display or len(surface) < len(display[key]):
-            display[key] = surface
+        # Prefer the shortest surface form (usually the singular) as the join key.
+        low = display_term(text)
+        if key not in surface or len(low) < len(surface[key]):
+            surface[key] = low
+        if display and key not in authored:
+            authored[key] = display  # first authored display wins (file order)
 
     for entry in raw.get("terms", []):
-        add(entry["term"], float(entry.get("weight", 1)))
+        add(entry["term"], float(entry.get("weight", 1)), entry.get("display"))
     for alias in raw.get("aliases", []):
-        add(alias, _ALIAS_WEIGHT)
+        alias_text, alias_display = (alias, None) if isinstance(alias, str) else (
+            alias["term"],
+            alias.get("display"),
+        )
+        add(alias_text, _ALIAS_WEIGHT, alias_display)
+
+    # Display = authored form when given, otherwise a deterministic title-case fallback.
+    display = {key: authored.get(key, title_case(surface[key])) for key in terms}
 
     return Category(
         id=raw["id"],
@@ -67,6 +78,7 @@ def _load_category(raw: dict, fallback_type: str) -> Category:
         type=raw.get("type", fallback_type),
         terms=terms,
         display=display,
+        surface=surface,
     )
 
 

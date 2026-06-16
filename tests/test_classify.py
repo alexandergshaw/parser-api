@@ -33,7 +33,9 @@ def test_matched_terms_are_returned_as_evidence():
     scored = _score("Deep learning with a neural network trained in PyTorch.")
     top = scored[0]
     assert top.id == "machine_learning"
-    assert "neural network" in top.matched_terms
+    # matched_terms carry display casing; canonical keys stay lowercased
+    assert "Neural Network" in top.matched_terms
+    assert "neural network" in top.matched_keys
 
 
 def test_no_taxonomy_match_returns_empty():
@@ -62,7 +64,7 @@ def test_plural_text_matches_singular_lexicon():
     ids = {s.id for s in scored}
     assert "data_science" in ids  # "data pipelines" -> "data pipeline"
     ml = next(s for s in scored if s.id == "machine_learning")
-    assert "neural network" in ml.matched_terms  # plural matched, singular displayed
+    assert "Neural Network" in ml.matched_terms  # plural matched, display casing shown
 
 
 def test_idf_downweights_shared_terms(tmp_path):

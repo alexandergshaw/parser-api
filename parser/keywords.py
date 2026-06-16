@@ -20,10 +20,17 @@ _MAX_PHRASE_WORDS = 4
 
 @dataclass
 class Keyword:
-    term: str
+    term: str  # lowercased, de-punctuated — stable join/dedup key (never changes)
     score: float
     source: str  # "rake" | "lexicon" | "rake+lexicon"
+    display: str | None = None  # human-facing casing ("ETL", "CI/CD", source casing)
     related: str | None = None  # label of the broad emphasis this keyword falls under
+    related_id: str | None = None  # stable id of that emphasis (e.g. "data_science")
+
+
+def _render(term: str, surface_index: dict[str, str]) -> str:
+    """Render a RAKE term with the casing it had in the source (token-wise, deterministic)."""
+    return " ".join(surface_index.get(tok, tok.capitalize()) for tok in term.split())
 
 
 def _candidate_phrases(
@@ -45,8 +52,15 @@ def _candidate_phrases(
     return [p for p in phrases if 1 <= len(p) <= _MAX_PHRASE_WORDS]
 
 
-def rake(chunks: list[list[str]], stopwords: frozenset[str]) -> list[Keyword]:
-    """Rank candidate keyphrases by RAKE score, normalized to [0, 1]."""
+def rake(
+    chunks: list[list[str]],
+    stopwords: frozenset[str],
+    surface_index: dict[str, str],
+) -> list[Keyword]:
+    """Rank candidate keyphrases by RAKE score, normalized to [0, 1].
+
+    ``surface_index`` provides the source casing used for each keyword's ``display``.
+    """
     phrases = _candidate_phrases(chunks, stopwords)
     if not phrases:
         return []
@@ -69,7 +83,12 @@ def rake(chunks: list[list[str]], stopwords: frozenset[str]) -> list[Keyword]:
 
     top = max(phrase_scores.values())
     return [
-        Keyword(term=term, score=round(score / top, 4), source="rake")
+        Keyword(
+            term=term,
+            score=round(score / top, 4),
+            source="rake",
+            display=_render(term, surface_index),
+        )
         for term, score in sorted(phrase_scores.items(), key=lambda kv: kv[1], reverse=True)
     ]
 
@@ -86,19 +105,24 @@ def merge_keywords(
     """
     merged: dict[str, Keyword] = {kw.term: kw for kw in rake_keywords}
 
-    # Lexicon evidence from the strongest categories, scored by rank position.
+    # Lexicon evidence from the strongest categories, scored by rank position. The
+    # join key is the lowercased surface (so it dedupes against RAKE terms); the
+    # human-facing form is the taxonomy's authored display.
     for rank, cat in enumerate(scored[:4]):
         base = max(0.3, 1.0 - rank * 0.2)
-        for i, term in enumerate(cat.matched_terms):
+        for i, key in enumerate(cat.matched_keys):
+            term = cat.matched_surfaces[i] if i < len(cat.matched_surfaces) else key
+            disp = cat.matched_terms[i] if i < len(cat.matched_terms) else None
             lex_score = round(base * (1.0 - min(i, 9) * 0.05), 4)
             existing = merged.get(term)
             if existing is None:
-                merged[term] = Keyword(term=term, score=lex_score, source="lexicon")
+                merged[term] = Keyword(term=term, score=lex_score, source="lexicon", display=disp)
             else:
                 merged[term] = Keyword(
                     term=term,
                     score=min(1.0, round(max(existing.score, lex_score) + 0.1, 4)),
                     source="rake+lexicon",
+                    display=disp or existing.display,  # prefer authored display
                 )
 
     ranked = sorted(merged.values(), key=lambda kw: kw.score, reverse=True)
@@ -111,16 +135,17 @@ def assign_related_emphasis(keywords: list[Keyword], scored: list[ScoredCategory
     This links the specific subtopics back to their broad parent label so the
     researcher API can drive both general and deep-dive research from one response.
     """
-    cat_tokens: list[tuple[str, set[str]]] = []
+    cat_tokens: list[tuple[str, str, set[str]]] = []
     for cat in scored:
         toks: set[str] = set()
         for key in cat.matched_keys:
             toks.update(key.split())
-        cat_tokens.append((cat.label, toks))
+        cat_tokens.append((cat.label, cat.id, toks))
 
     for kw in keywords:
         kw_tokens = {singularize(tok) for tok in tokenize(kw.term)}
-        for label, toks in cat_tokens:
+        for label, cat_id, toks in cat_tokens:
             if kw_tokens & toks:
                 kw.related = label
+                kw.related_id = cat_id
                 break

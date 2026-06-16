@@ -111,9 +111,35 @@ vercel        # preview
 vercel --prod # production
 ```
 
-## Extending — data only, no code
+## Adding a target (lens) — data only, no code
 
-**Add/grow an emphasis category** in `taxonomy/fields.json` / `sectors.json`:
+A new `targets` value is added by editing data, not code. Nothing hard-codes lens names: the
+pipeline dispatches on a lens's `kind`, the API validates against the registry, and the UI loops
+`GET /api/lenses` and renders by `kind`. So any new lens of an existing kind flows through
+untouched — instantly requestable via `targets`, listed by `/api/lenses`, rendered by the UI,
+validated by the API, and bundled into the Vercel function (the `includeFiles: "**"` glob already
+covers new files).
+
+**A new lexicon lens** (detect terms from a curated list — e.g. methodologies, certifications) —
+two data edits:
+
+1. One entry in `taxonomy/lenses.json`:
+   ```json
+   { "name": "methodologies", "kind": "lexicon", "source": "lexicons/methodologies.json" }
+   ```
+2. The list at `taxonomy/lexicons/methodologies.json`:
+   ```json
+   [ { "term": "scrum", "display": "Scrum" }, { "term": "kanban", "display": "Kanban" } ]
+   ```
+
+Each matched term is linked dynamically to the document's relevant emphasis (`related`).
+
+**A new emphasis axis** (rank a new vocabulary — e.g. `seniority`) — also data only:
+
+1. A categories file (e.g. `taxonomy/seniority.json`, or set `"type": "seniority"` on the entries).
+2. One entry in `taxonomy/lenses.json`: `{ "name": "seniority", "kind": "emphasis", "axis": "seniority" }`.
+
+**Growing an existing emphasis category** — edit `taxonomy/fields.json` / `sectors.json`:
 
 ```json
 {
@@ -126,9 +152,7 @@ vercel --prod # production
 category only surfaces with ≥2 matched terms or one weight-≥2 term, so lone common words can't create
 false emphases. Optional `display` gives a term human-facing casing.
 
-**Add a lens** in `taxonomy/lenses.json` — e.g. a new lexicon lens:
-```json
-{ "name": "methodologies", "kind": "lexicon", "source": "lexicons/methodologies.json" }
-```
-then drop a `taxonomy/lexicons/methodologies.json` of `[{ "term": "...", "display": "..." }]`. It's
-immediately requestable via `targets` and appears in `GET /api/lenses` — no code change.
+**Caveats**
+- The lens must be one of the existing kinds (`emphasis` / `lexicon` / `keywords`). A genuinely new
+  *kind* of extraction needs code — a handler in `parser/pipeline.py` and a render branch in the UI.
+- The registry is cached at cold start, so a redeploy (or restart) is needed to pick up new data.

@@ -88,7 +88,8 @@ pytest                          # run the test suite
 ```
 
 Interactive docs + machine-readable schema (a contract for the researcher API) are auto-generated at
-`/docs` and `/openapi.json`.
+`/docs` and `/openapi.json`. For ecosystem consumers, see the full
+[integration spec](docs/INTEGRATION.md).
 
 ### Configuration (env vars)
 

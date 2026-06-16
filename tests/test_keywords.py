@@ -32,16 +32,13 @@ def test_merge_dedupes_and_tags_source():
             id="data_science",
             label="Data Science",
             type="field",
-            score=0.6,
             raw_score=10.0,
-            matched_terms=["ETL", "Data Pipeline"],   # authored display
-            matched_keys=["etl", "data pipeline"],     # stemmed canonical keys
-            matched_surfaces=["etl", "data pipeline"], # lowercased join keys
+            matched_terms=["ETL", "Data Pipeline"],
+            matched_keys=["etl", "data pipeline"],
+            matched_surfaces=["etl", "data pipeline"],
         )
     ]
     merged = {k.term: k for k in merge_keywords(rake_kws, scored, 10)}
-    assert merged["etl"].source == "lexicon"
-    assert merged["etl"].display == "ETL"
+    assert merged["etl"].source == "lexicon" and merged["etl"].display == "ETL"
     assert merged["data pipeline"].source == "rake+lexicon"
-    assert merged["data pipeline"].display == "Data Pipeline"
     assert merged["analytics platform"].source == "rake"

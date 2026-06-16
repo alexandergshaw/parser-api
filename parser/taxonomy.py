@@ -103,10 +103,15 @@ def load_taxonomy(directory: Path | str | None = None) -> Taxonomy:
     base = Path(directory) if directory else _default_dir()
     categories: list[Category] = []
     for path in sorted(base.glob("*.json")):
+        if path.name == "lenses.json":
+            continue  # the lens registry is not a category file
         fallback_type = path.stem.rstrip("s")  # fields.json -> "field"
         data = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(data, list):
+            continue
         for raw in data:
-            categories.append(_load_category(raw, fallback_type))
+            if isinstance(raw, dict) and "id" in raw:
+                categories.append(_load_category(raw, fallback_type))
 
     # Document frequency of each term across all categories -> smoothed IDF.
     doc_freq: dict[str, int] = {}

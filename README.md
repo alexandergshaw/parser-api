@@ -2,49 +2,46 @@
 
 The first service in an **LLM-alternative ecosystem**. It ingests a block of text (job
 descriptions, resumes, lecture transcripts, …) and returns — **without any LLM**, fully
-deterministically — two tiers of output:
+deterministically — structured extractions organized by **lenses** the caller chooses.
 
-1. **Broad emphases** — abstracted topic + sector labels (e.g. *Data Science*, *Software Industry*),
-   produced by a curated taxonomy + weighted lexicon scoring engine.
-2. **Specific subtopics / keywords** — salient phrases lifted from *this particular document*
-   (e.g. *gradient boosting*, *ETL pipeline*), produced by unsupervised keyphrase extraction.
+You pass which lenses to apply (`targets`); the API returns a result per lens:
 
-The downstream **researcher API** consumes both: broad labels drive general research, specific
-subtopics drive deep-dive research and resume/lecture adaptation.
+- **emphasis** lenses (e.g. `field`, `sector`) rank a curated taxonomy axis → the document's topic /
+  industry, each with the `matched_terms` that produced it.
+- **lexicon** lenses (e.g. `technologies`) report which terms from a curated list appear, each linked
+  to the document's relevant emphasis.
+- **keywords** lens returns unsupervised RAKE keyphrases lifted from *this* document.
+
+The downstream **researcher API** consumes these: emphases drive general research; keywords and
+detected technologies drive deep-dive research.
 
 ## How it works
 
 ```
-text ──► normalize (tokenize, 1–3-grams)
-            ├─► classify  (lexicon scoring over taxonomy/*.json)  ──► broad emphases
-            └─► extract   (pure-Python RAKE keyphrase extraction) ──► specific keywords
-                                                                   merge ─► JSON response
+text ─► normalize (tokenize, stem, n-grams)
+          ├─ emphasis lenses ─ per-axis lexicon scoring over taxonomy/*.json ─► top + ranked
+          ├─ lexicon lenses  ─ curated term lists in taxonomy/lexicons/      ─► matched terms
+          └─ keywords lens   ─ pure-Python RAKE                              ─► keyphrases
+                                                          results keyed by requested lens ─► JSON
 ```
 
-- **No LLM, no training data, no network calls.** Everything is deterministic and explainable —
-  every emphasis comes with the `matched_terms` that produced it.
-- **Data-driven taxonomy.** Categories live in `taxonomy/fields.json` and `taxonomy/sectors.json`.
-  Expanding coverage (toward generalist) means editing JSON, not code.
-- **Keyword extraction is pure-Python** (RAKE-style) to keep the Vercel bundle dependency-free and
-  cold-starts fast.
-- **Light stemming** on the matching layer so plurals match (`data pipelines` → `data pipeline`),
-  while keywords keep their natural surface form for display.
-- **Keywords are linked to their parent emphasis** via `related_emphasis` (label) and
-  `related_emphasis_id` (stable id), so consumers can drive both broad and deep-dive research.
-- **Human-facing casing** on every keyword: `term` stays lowercased for stable joins/dedup, while
-  `display` carries authored casing for acronyms/special forms (`ETL`, `CI/CD`, `Node.js`) or the
-  most-frequent source casing for free-text phrases. The same authored casing is used in
-  `matched_terms`.
+- **No LLM, no training data, no network calls.** Deterministic and explainable — every emphasis
+  ships the `matched_terms` that produced it.
+- **Everything is data-driven.** Categories in `taxonomy/fields.json` / `sectors.json`; lenses in
+  `taxonomy/lenses.json`; lexicons in `taxonomy/lexicons/`. New coverage = edit data, not code.
+- **Pure-Python** (RAKE + lexicon scoring) — no NLP dependencies, tiny bundle, fast cold starts.
+- **Light stemming** so plurals match; **display casing** preserved (`term` lowercased for joins,
+  `display` for humans); keywords/technologies **link to their parent emphasis** via `related`.
 
 ## Project layout
 
 | Path | Purpose |
 | --- | --- |
 | `api/index.py` | Flask app — Vercel entrypoint, `/api/parse`, serves the testing UI at `/` |
-| `parser/` | Framework-agnostic core library (unit-testable without HTTP) |
-| `taxonomy/` | `fields.json` + `sectors.json` — the curated lexicons |
-| `web/index.html` | Vanilla-JS testing UI (served by the function; not in reserved `public/`) |
-| `tests/` | pytest suite incl. the data-engineer acceptance test |
+| `parser/` | Framework-agnostic core (lenses, per-axis scoring, RAKE) |
+| `taxonomy/` | `fields.json`, `sectors.json`, `lenses.json`, `lexicons/technologies.json` |
+| `web/index.html`, `web/app.js` | Lens-agnostic testing UI (served by the function; not in reserved `public/`) |
+| `tests/` | pytest suite |
 
 ## Local development
 
@@ -61,35 +58,38 @@ pytest                          # run the test suite
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `POST` | `/api/parse` | Parse text → emphases + keywords |
+| `POST` | `/api/parse` | Parse text into lens-keyed results |
+| `GET` | `/api/lenses` | Discover available lenses (what `targets` accepts) |
+| `GET` | `/api/taxonomy` | Enumerate the emphasis vocabulary (`{id, label, type}`) |
 | `GET` | `/api/health` | Liveness, version, taxonomy size |
-| `GET` | `/api/taxonomy` | Enumerate the controlled vocabulary (`{id, label, type}`) |
-| `GET` | `/docs`, `/openapi.json` | Interactive docs + machine-readable schema |
-
-`POST /api/parse`
+| `GET` | `/docs`, `/openapi.json` | Swagger UI + machine-readable schema |
 
 ```jsonc
-// Request
-{ "text": "…", "max_keywords": 15 }
+// POST /api/parse — request
+{ "text": "…", "targets": ["field", "technologies"], "max_keywords": 15 }
+// `targets` is optional (omit → default lenses) and RESTRICTIVE — only those lenses are returned.
 
-// Response 200
+// Response 200 — keyed by the requested lenses
 {
-  "primary":   { "id": "data_science", "label": "Data Science", "type": "field", "score": 0.82,
-                 "matched_terms": ["machine learning", "etl", "data pipeline"] },
-  "secondary": { "id": "software_industry", "label": "Software Industry", "type": "sector",
-                 "score": 0.54, "matched_terms": ["agile", "ci/cd"] },
-  "emphases":  [ /* full ranked list */ ],
-  "keywords":  [ { "term": "gradient boosting", "display": "Gradient Boosting", "score": 0.91,
-                  "source": "rake", "related_emphasis": "Machine Learning",
-                  "related_emphasis_id": "machine_learning" } ],
-  "meta":      { "token_count": 412, "confidence": 0.82, "low_confidence": false,
-                 "version": "0.3.0" }
+  "results": {
+    "field": {
+      "kind": "emphasis",
+      "top":    { "id": "data_science", "label": "Data Science", "score": 0.88,
+                  "matched_terms": ["ETL", "Spark", "SQL"], "low_confidence": false },
+      "ranked": [ /* categories of this axis, scores sum to ~1 */ ]
+    },
+    "technologies": {
+      "kind": "lexicon",
+      "matched": [ { "term": "spark", "display": "Spark",
+                     "related": { "id": "data_science", "label": "Data Science" } } ]
+    }
+  },
+  "meta": { "token_count": 26, "version": "1.0.0" }
 }
 ```
 
-Interactive docs + machine-readable schema (a contract for the researcher API) are auto-generated at
-`/docs` and `/openapi.json`. For ecosystem consumers, see the full
-[integration spec](docs/INTEGRATION.md).
+Full contract for ecosystem consumers: the [integration spec](docs/INTEGRATION.md); live schema at
+`/openapi.json` + `/docs`.
 
 ### Configuration (env vars)
 
@@ -111,19 +111,24 @@ vercel        # preview
 vercel --prod # production
 ```
 
-## Extending the taxonomy
+## Extending — data only, no code
 
-Add or edit entries in `taxonomy/fields.json` / `taxonomy/sectors.json`. Each category:
+**Add/grow an emphasis category** in `taxonomy/fields.json` / `sectors.json`:
 
 ```json
 {
-  "id": "data_science",
-  "label": "Data Science",
-  "type": "field",
-  "terms": [{ "term": "machine learning", "weight": 3 }, { "term": "etl", "weight": 2 }],
+  "id": "data_science", "label": "Data Science",
+  "terms": [{ "term": "machine learning", "weight": 3 }, { "term": "etl", "weight": 2, "display": "ETL" }],
   "aliases": ["data engineering", "ml"]
 }
 ```
+`weight` lets strong signals outrank ambiguous ones; shared terms are auto down-weighted (IDF). A
+category only surfaces with ≥2 matched terms or one weight-≥2 term, so lone common words can't create
+false emphases. Optional `display` gives a term human-facing casing.
 
-`weight` lets strong signals outrank ambiguous ones; terms shared across many categories are
-automatically down-weighted (IDF) at load time, so you don't need a training corpus.
+**Add a lens** in `taxonomy/lenses.json` — e.g. a new lexicon lens:
+```json
+{ "name": "methodologies", "kind": "lexicon", "source": "lexicons/methodologies.json" }
+```
+then drop a `taxonomy/lexicons/methodologies.json` of `[{ "term": "...", "display": "..." }]`. It's
+immediately requestable via `targets` and appears in `GET /api/lenses` — no code change.

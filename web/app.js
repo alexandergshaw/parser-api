@@ -1,7 +1,6 @@
 // Parser API tester — external script (loaded via <script src="/app.js">).
-// Kept external so it is never subject to inline-script CSP or HTML templating.
+// Lens-agnostic: it renders whatever lenses the API returns under `results`.
 
-const INJECTED_KEY = "";
 const $ = (id) => document.getElementById(id);
 const out = $('out');
 let lastResponse = null;
@@ -15,13 +14,12 @@ lake, model data for downstream consumers, and optimize big data processing with
 and Airflow. Strong SQL and Python skills are required, along with experience in data
 modeling and feature engineering for machine learning use cases. You'll work in an Agile
 team with two-week sprints, participate in code review, and ship through our CI/CD
-pipeline to production. Experience with Kafka, dbt, and Snowflake is a plus.`,
+pipeline. Experience with Kafka, dbt, Snowflake, AWS, Docker, and Kubernetes is a plus.`,
   phys: `Today's lecture covers classical mechanics. We begin with Newton's laws and the
-concept of momentum, then derive equations for velocity and acceleration under a constant
-force. We'll connect kinetic energy to work, discuss thermodynamics briefly, and preview
-how electromagnetism and relativity reshape these ideas. Your homework from the textbook
-is due before the next lecture; the exam will cover everything through this week's
-coursework.`,
+concept of momentum, then derive equations for velocity and acceleration. We'll connect
+kinetic energy to work, discuss thermodynamics briefly, and preview how electromagnetism
+and relativity reshape these ideas. Your homework from the textbook is due before the
+next lecture; the exam will cover everything through this week's coursework.`,
 };
 
 // ---- settings (persisted) -------------------------------------------------
@@ -35,7 +33,6 @@ function apiHeaders(json) {
   return h;
 }
 function saveSettings() {
-  // Storage can throw in sandboxed/embedded contexts — never let it break the UI.
   try {
     localStorage.setItem('parserApi.baseUrl', $('baseUrl').value.trim());
     localStorage.setItem('parserApi.apiKey', $('apiKey').value);
@@ -48,7 +45,7 @@ function loadSettings() {
     savedKey = localStorage.getItem('parserApi.apiKey');
   } catch (e) { /* storage unavailable */ }
   $('baseUrl').value = base;
-  $('apiKey').value = savedKey !== null && savedKey !== undefined ? savedKey : INJECTED_KEY;
+  $('apiKey').value = savedKey !== null && savedKey !== undefined ? savedKey : '';
 }
 
 // ---- helpers --------------------------------------------------------------
@@ -56,7 +53,6 @@ function pct(x) { return Math.round((x || 0) * 100); }
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 function netError(e) {
-  // fetch() rejects (vs. an HTTP error response) on network / DNS / CORS failures.
   return `Couldn't reach the API. Check the base URL, that the server is running, and — for a
     cross-origin URL — that the API's ALLOWED_ORIGINS permits this page. (${escapeHtml(String(e))})`;
 }
@@ -67,7 +63,10 @@ async function flash(btn, msg) {
 
 // ---- health badge ---------------------------------------------------------
 let healthTimer = null;
-function scheduleHealth() { clearTimeout(healthTimer); healthTimer = setTimeout(loadHealth, 400); }
+function scheduleRefresh() {
+  clearTimeout(healthTimer);
+  healthTimer = setTimeout(() => { loadHealth(); loadLenses(); }, 400);
+}
 async function loadHealth() {
   const badge = $('badge'), text = $('badgeText');
   badge.className = 'badge'; text.textContent = 'checking…';
@@ -85,17 +84,40 @@ async function loadHealth() {
   }
 }
 
+// ---- targets (lens selector) ----------------------------------------------
+async function loadLenses() {
+  const box = $('targets');
+  try {
+    const res = await fetch(apiUrl('/api/lenses'), { headers: apiHeaders(false) });
+    const d = await res.json();
+    box.innerHTML = (d.lenses || []).map((l) =>
+      `<label class="tgl"><input type="checkbox" value="${escapeHtml(l.name)}" ${l.default ? 'checked' : ''}/>` +
+      `${escapeHtml(l.name)} <span class="kind">${escapeHtml(l.kind)}</span></label>`
+    ).join('');
+  } catch (e) {
+    box.innerHTML = '<span class="err">couldn\'t load lenses</span>';
+  }
+}
+function selectedTargets() {
+  const checked = [...document.querySelectorAll('#targets input:checked')].map((i) => i.value);
+  return checked.length ? checked : null; // null → server defaults
+}
+
 // ---- parse ----------------------------------------------------------------
 $('go').addEventListener('click', run);
+function requestBody() {
+  const body = { text: $('text').value.trim(), max_keywords: Number($('maxkw').value) || 15 };
+  const targets = selectedTargets();
+  if (targets) body.targets = targets;
+  return body;
+}
 async function run() {
-  const text = $('text').value.trim();
-  if (!text) { out.innerHTML = '<div class="err">Enter some text first.</div>'; return; }
+  if (!$('text').value.trim()) { out.innerHTML = '<div class="err">Enter some text first.</div>'; return; }
   $('go').disabled = true;
   out.innerHTML = '<div class="empty">Parsing…</div>';
   try {
     const res = await fetch(apiUrl('/api/parse'), {
-      method: 'POST', headers: apiHeaders(true),
-      body: JSON.stringify({ text, max_keywords: Number($('maxkw').value) || 15 }),
+      method: 'POST', headers: apiHeaders(true), body: JSON.stringify(requestBody()),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -111,47 +133,68 @@ async function run() {
   }
 }
 
-function emphCard(e, kind) {
-  if (!e) return '';
-  const chips = (e.matched_terms || []).map((t) => `<span class="chip">${escapeHtml(t)}</span>`).join('');
-  return `<div class="emph ${kind}">
-    <div class="tag">${kind} emphasis</div>
-    <div class="label">${escapeHtml(e.label)}
-      <span class="id">${escapeHtml(e.id || '')} · ${escapeHtml(e.type)}</span></div>
-    <div class="bar"><i style="width:${pct(e.score)}%"></i></div>
-    <div class="chips">${chips}</div>
-  </div>`;
+// ---- lens-agnostic rendering ----------------------------------------------
+function render(d) {
+  const results = d.results || {};
+  let html = '<div class="rtools"><button class="ghost sm" id="copyjson">Copy JSON</button></div>';
+  const names = Object.keys(results);
+  if (!names.length) html += '<div class="empty">No lenses returned.</div>';
+  for (const name of names) {
+    const r = results[name];
+    html += `<h3>${escapeHtml(name)} <span class="kind">${escapeHtml(r.kind || '')}</span></h3>`;
+    html += renderLens(r);
+  }
+  const m = d.meta || {};
+  html += `<div class="meta"><span>tokens: ${m.token_count}</span><span>v${escapeHtml(m.version || '')}</span></div>`;
+  html += `<details><summary>Raw JSON</summary><pre>${escapeHtml(JSON.stringify(d, null, 2))}</pre></details>`;
+  out.innerHTML = html;
+  const cj = $('copyjson');
+  if (cj) cj.addEventListener('click', (ev) => copyJson(ev.target));
 }
 
-function render(d) {
-  const m = d.meta || {};
-  let html = '<div class="rtools"><button class="ghost sm" id="copyjson">Copy JSON</button></div>';
-  html += emphCard(d.primary, 'primary') + emphCard(d.secondary, 'secondary');
-  if (!d.primary) html += '<div class="err">No emphasis matched the taxonomy.</div>';
+function renderLens(r) {
+  if (r.kind === 'emphasis') return renderEmphasis(r);
+  if (r.kind === 'lexicon') return renderLexicon(r);
+  if (r.kind === 'keywords') return renderKeywords(r);
+  return '';
+}
 
-  html += '<h3>All ranked emphases</h3><div class="ranked">';
-  (d.emphases || []).forEach((e) => {
-    html += `<div class="item"><span class="nm">${escapeHtml(e.label)}</span>
+function renderEmphasis(r) {
+  if (!r.top) return '<div class="empty">no match</div>';
+  const t = r.top;
+  const chips = (t.matched_terms || []).map((x) => `<span class="chip">${escapeHtml(x)}</span>`).join('');
+  const warn = t.low_confidence ? ' <span class="warn">⚠ low confidence</span>' : '';
+  let h = `<div class="emph primary">
+    <div class="tag">top${warn}</div>
+    <div class="label">${escapeHtml(t.label)} <span class="id">${escapeHtml(t.id)}</span></div>
+    <div class="bar"><i style="width:${pct(t.score)}%"></i></div>
+    <div class="chips">${chips}</div></div>`;
+  h += '<div class="ranked">';
+  (r.ranked || []).forEach((e) => {
+    h += `<div class="item"><span class="nm">${escapeHtml(e.label)}</span>
       <span class="bar"><i style="width:${pct(e.score)}%"></i></span>
       <span class="pct">${pct(e.score)}%</span></div>`;
   });
-  html += '</div>';
+  return h + '</div>';
+}
 
-  html += '<h3>Specific keywords</h3><div class="chips">';
-  (d.keywords || []).forEach((k) => {
+function renderLexicon(r) {
+  const m = r.matched || [];
+  if (!m.length) return '<div class="empty">none detected</div>';
+  return '<div class="chips">' + m.map((x) => {
+    const rel = x.related ? x.related.label : '';
+    return `<span class="chip" title="${escapeHtml(rel)}">${escapeHtml(x.display || x.term)}</span>`;
+  }).join('') + '</div>';
+}
+
+function renderKeywords(r) {
+  const items = r.items || [];
+  if (!items.length) return '<div class="empty">none</div>';
+  return '<div class="chips">' + items.map((k) => {
     const cls = k.source === 'lexicon' ? 'lex' : (k.source === 'rake+lexicon' ? 'both' : '');
-    const rel = k.related_emphasis ? ' · ' + k.related_emphasis : '';
-    html += `<span class="chip ${cls}" title="${escapeHtml(k.source + rel)}">${escapeHtml(k.display || k.term)}<span class="s">${pct(k.score)}</span></span>`;
-  });
-  html += '</div>';
-
-  const warn = m.low_confidence ? '<span class="warn">⚠ low confidence</span>' : '';
-  html += `<div class="meta"><span>tokens: ${m.token_count}</span>
-    <span>confidence: ${pct(m.confidence)}%</span> ${warn}
-    <span>v${escapeHtml(m.version || '')}</span></div>`;
-  html += `<details><summary>Raw JSON</summary><pre>${escapeHtml(JSON.stringify(d, null, 2))}</pre></details>`;
-  out.innerHTML = html;
-  $('copyjson').addEventListener('click', (ev) => copyJson(ev.target));
+    const rel = k.related ? ' · ' + k.related.label : '';
+    return `<span class="chip ${cls}" title="${escapeHtml(k.source + rel)}">${escapeHtml(k.display || k.term)}<span class="s">${pct(k.score)}</span></span>`;
+  }).join('') + '</div>';
 }
 
 // ---- copy helpers ---------------------------------------------------------
@@ -161,13 +204,11 @@ async function copyToClipboard(textVal, btn) {
   catch (e) { flash(btn, 'Copy failed'); }
 }
 $('copycurl').addEventListener('click', (ev) => {
-  const text = $('text').value.trim();
-  if (!text) { flash(ev.target, 'No text'); return; }
+  if (!$('text').value.trim()) { flash(ev.target, 'No text'); return; }
   const url = (getBase() || location.origin) + '/api/parse';
-  const body = JSON.stringify({ text, max_keywords: Number($('maxkw').value) || 15 });
   const lines = [`curl -s ${shellQuote(url)}`, `-H 'Content-Type: application/json'`];
   if (getKey()) lines.push(`-H ${shellQuote('X-API-Key: ' + getKey())}`);
-  lines.push(`-d ${shellQuote(body)}`);
+  lines.push(`-d ${shellQuote(JSON.stringify(requestBody()))}`);
   copyToClipboard(lines.join(' \\\n  '), ev.target);
 });
 function copyJson(btn) {
@@ -183,11 +224,11 @@ async function loadTaxonomy() {
     const res = await fetch(apiUrl('/api/taxonomy'), { headers: apiHeaders(false) });
     const d = await res.json();
     if (!res.ok) { box.innerHTML = `<div class="err">HTTP ${res.status}</div>`; return; }
-    const groups = { field: [], sector: [] };
+    const groups = {};
     (d.categories || []).forEach((c) => (groups[c.type] || (groups[c.type] = [])).push(c));
     const col = (title, items) => `<div><h3>${title} (${items.length})</h3>` +
       items.map((c) => `<div class="cat">${escapeHtml(c.label)}<span class="id">${escapeHtml(c.id)}</span></div>`).join('') + '</div>';
-    box.innerHTML = col('Fields', groups.field || []) + col('Sectors', groups.sector || []);
+    box.innerHTML = Object.keys(groups).sort().map((t) => col(t, groups[t])).join('');
     $('taxCount').textContent = `${d.count} categories · v${d.version}`;
     taxLoaded = true;
   } catch (e) {
@@ -205,8 +246,9 @@ document.querySelectorAll('.presets button').forEach((b) => {
   });
 });
 ['baseUrl', 'apiKey'].forEach((id) => $(id).addEventListener('input', () => {
-  saveSettings(); taxLoaded = false; scheduleHealth();
+  saveSettings(); taxLoaded = false; scheduleRefresh();
 }));
 
 loadSettings();
 loadHealth();
+loadLenses();

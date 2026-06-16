@@ -2,407 +2,206 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Parser API",
-    "description": "Deterministic, LLM-free extraction of a text's broad emphases (curated taxonomy + lexicon scoring) and specific subtopics/keywords (RAKE).",
-    "version": "0.3.3"
+    "description": "Deterministic, LLM-free text extraction organized by composable lenses (emphasis axes, curated lexicons, and RAKE keywords).",
+    "version": "1.0.0"
   },
   "paths": {
-    "/api/health": {
-      "get": {
-        "summary": "Health",
-        "operationId": "health_api_health_get",
+    "/api/parse": {
+      "post": {
+        "summary": "Parse text into lens-keyed results",
+        "operationId": "parse",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ParseRequest" } } }
+        },
         "responses": {
           "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Health Api Health Get"
-                }
-              }
-            }
-          }
+            "description": "Lens-keyed results",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ParseResponse" } } }
+          },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "413": { "$ref": "#/components/responses/Error" },
+          "422": { "$ref": "#/components/responses/Error" }
         }
+      }
+    },
+    "/api/health": {
+      "get": {
+        "summary": "Liveness, version, taxonomy size",
+        "operationId": "health",
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Health" } } } } }
+      }
+    },
+    "/api/lenses": {
+      "get": {
+        "summary": "Enumerate available extraction lenses",
+        "operationId": "lenses",
+        "responses": { "200": { "description": "Lens registry", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Lenses" } } } } }
       }
     },
     "/api/taxonomy": {
       "get": {
-        "summary": "Taxonomy",
-        "description": "Enumerate the controlled vocabulary so consumers can discover it dynamically.",
-        "operationId": "taxonomy_api_taxonomy_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TaxonomyResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/parse": {
-      "post": {
-        "summary": "Parse Text",
-        "operationId": "parse_text_api_parse_post",
-        "parameters": [
-          {
-            "name": "x-api-key",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Api-Key"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ParseRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ParseResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
+        "summary": "Enumerate the emphasis vocabulary",
+        "operationId": "taxonomy",
+        "responses": { "200": { "description": "Vocabulary", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Taxonomy" } } } } }
       }
     }
   },
   "components": {
+    "responses": {
+      "Error": {
+        "description": "Error",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      }
+    },
     "schemas": {
-      "CategoryInfo": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "label": {
-            "type": "string",
-            "title": "Label"
-          },
-          "type": {
-            "type": "string",
-            "title": "Type"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "label",
-          "type"
-        ],
-        "title": "CategoryInfo"
-      },
-      "Emphasis": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "label": {
-            "type": "string",
-            "title": "Label"
-          },
-          "type": {
-            "type": "string",
-            "title": "Type"
-          },
-          "score": {
-            "type": "number",
-            "title": "Score"
-          },
-          "matched_terms": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Matched Terms"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "label",
-          "type",
-          "score",
-          "matched_terms"
-        ],
-        "title": "Emphasis"
-      },
-      "HTTPValidationError": {
-        "properties": {
-          "detail": {
-            "items": {
-              "$ref": "#/components/schemas/ValidationError"
-            },
-            "type": "array",
-            "title": "Detail"
-          }
-        },
-        "type": "object",
-        "title": "HTTPValidationError"
-      },
-      "Keyword": {
-        "properties": {
-          "term": {
-            "type": "string",
-            "title": "Term"
-          },
-          "display": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Display"
-          },
-          "score": {
-            "type": "number",
-            "title": "Score"
-          },
-          "source": {
-            "type": "string",
-            "title": "Source"
-          },
-          "related_emphasis": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Related Emphasis"
-          },
-          "related_emphasis_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Related Emphasis Id"
-          }
-        },
-        "type": "object",
-        "required": [
-          "term",
-          "score",
-          "source"
-        ],
-        "title": "Keyword"
-      },
-      "Meta": {
-        "properties": {
-          "token_count": {
-            "type": "integer",
-            "title": "Token Count"
-          },
-          "confidence": {
-            "type": "number",
-            "title": "Confidence"
-          },
-          "low_confidence": {
-            "type": "boolean",
-            "title": "Low Confidence"
-          },
-          "version": {
-            "type": "string",
-            "title": "Version"
-          }
-        },
-        "type": "object",
-        "required": [
-          "token_count",
-          "confidence",
-          "low_confidence",
-          "version"
-        ],
-        "title": "Meta"
-      },
       "ParseRequest": {
-        "properties": {
-          "text": {
-            "type": "string",
-            "title": "Text",
-            "description": "The block of text to analyze."
-          },
-          "max_keywords": {
-            "type": "integer",
-            "maximum": 50.0,
-            "minimum": 1.0,
-            "title": "Max Keywords",
-            "description": "Max specific keywords to return.",
-            "default": 15
-          },
-          "language": {
-            "type": "string",
-            "title": "Language",
-            "description": "Reserved for future multi-language support.",
-            "default": "en"
-          }
-        },
         "type": "object",
-        "required": [
-          "text"
-        ],
-        "title": "ParseRequest"
+        "required": ["text"],
+        "properties": {
+          "text": { "type": "string", "description": "Text to analyze (1–50000 chars)." },
+          "targets": {
+            "description": "Lenses to compute. Omit for the default lenses. Each item is a lens name or {name, limit}. Restrictive: only the requested lenses are returned.",
+            "type": "array",
+            "items": {
+              "oneOf": [
+                { "type": "string" },
+                { "type": "object", "required": ["name"], "properties": { "name": { "type": "string" }, "limit": { "type": "integer" } } }
+              ]
+            }
+          },
+          "max_keywords": { "type": "integer", "minimum": 1, "maximum": 50, "default": 15 }
+        }
       },
       "ParseResponse": {
-        "properties": {
-          "primary": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Emphasis"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "secondary": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Emphasis"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "emphases": {
-            "items": {
-              "$ref": "#/components/schemas/Emphasis"
-            },
-            "type": "array",
-            "title": "Emphases"
-          },
-          "keywords": {
-            "items": {
-              "$ref": "#/components/schemas/Keyword"
-            },
-            "type": "array",
-            "title": "Keywords"
-          },
-          "meta": {
-            "$ref": "#/components/schemas/Meta"
-          }
-        },
         "type": "object",
-        "required": [
-          "primary",
-          "secondary",
-          "emphases",
-          "keywords",
-          "meta"
-        ],
-        "title": "ParseResponse"
-      },
-      "TaxonomyResponse": {
         "properties": {
-          "version": {
-            "type": "string",
-            "title": "Version"
-          },
-          "count": {
-            "type": "integer",
-            "title": "Count"
-          },
-          "categories": {
-            "items": {
-              "$ref": "#/components/schemas/CategoryInfo"
-            },
-            "type": "array",
-            "title": "Categories"
-          }
-        },
-        "type": "object",
-        "required": [
-          "version",
-          "count",
-          "categories"
-        ],
-        "title": "TaxonomyResponse"
-      },
-      "ValidationError": {
-        "properties": {
-          "loc": {
-            "items": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "integer"
-                }
-              ]
-            },
-            "type": "array",
-            "title": "Location"
-          },
-          "msg": {
-            "type": "string",
-            "title": "Message"
-          },
-          "type": {
-            "type": "string",
-            "title": "Error Type"
-          },
-          "input": {
-            "title": "Input"
-          },
-          "ctx": {
+          "results": {
             "type": "object",
-            "title": "Context"
-          }
-        },
+            "description": "Keyed by requested lens name; value depends on the lens kind.",
+            "additionalProperties": {
+              "oneOf": [
+                { "$ref": "#/components/schemas/EmphasisLens" },
+                { "$ref": "#/components/schemas/LexiconLens" },
+                { "$ref": "#/components/schemas/KeywordsLens" }
+              ]
+            }
+          },
+          "meta": { "$ref": "#/components/schemas/Meta" }
+        }
+      },
+      "Emphasis": {
         "type": "object",
-        "required": [
-          "loc",
-          "msg",
-          "type"
-        ],
-        "title": "ValidationError"
+        "properties": {
+          "id": { "type": "string" },
+          "label": { "type": "string" },
+          "score": { "type": "number", "description": "Share within the axis (0..1)." },
+          "matched_terms": { "type": "array", "items": { "type": "string" } },
+          "low_confidence": { "type": "boolean", "description": "Present on `top` only." }
+        }
+      },
+      "EmphasisLens": {
+        "type": "object",
+        "properties": {
+          "kind": { "type": "string", "enum": ["emphasis"] },
+          "top": { "oneOf": [{ "$ref": "#/components/schemas/Emphasis" }, { "type": "null" }] },
+          "ranked": { "type": "array", "items": { "$ref": "#/components/schemas/Emphasis" } }
+        }
+      },
+      "Related": {
+        "type": ["object", "null"],
+        "properties": { "id": { "type": "string" }, "label": { "type": "string" } }
+      },
+      "LexiconLens": {
+        "type": "object",
+        "properties": {
+          "kind": { "type": "string", "enum": ["lexicon"] },
+          "matched": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "term": { "type": "string", "description": "Lowercased join key." },
+                "display": { "type": "string" },
+                "related": { "$ref": "#/components/schemas/Related" }
+              }
+            }
+          }
+        }
+      },
+      "KeywordsLens": {
+        "type": "object",
+        "properties": {
+          "kind": { "type": "string", "enum": ["keywords"] },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "term": { "type": "string", "description": "Lowercased join key." },
+                "display": { "type": "string" },
+                "score": { "type": "number" },
+                "source": { "type": "string", "enum": ["rake", "lexicon", "rake+lexicon"] },
+                "related": { "$ref": "#/components/schemas/Related" }
+              }
+            }
+          }
+        }
+      },
+      "Meta": {
+        "type": "object",
+        "properties": {
+          "token_count": { "type": "integer" },
+          "version": { "type": "string" }
+        }
+      },
+      "Health": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string" },
+          "version": { "type": "string" },
+          "categories": { "type": "integer" }
+        }
+      },
+      "Lenses": {
+        "type": "object",
+        "properties": {
+          "version": { "type": "string" },
+          "lenses": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "kind": { "type": "string", "enum": ["emphasis", "lexicon", "keywords"] },
+                "default": { "type": "boolean" }
+              }
+            }
+          }
+        }
+      },
+      "Taxonomy": {
+        "type": "object",
+        "properties": {
+          "version": { "type": "string" },
+          "count": { "type": "integer" },
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string" },
+                "label": { "type": "string" },
+                "type": { "type": "string" }
+              }
+            }
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": { "detail": { "type": "string" } }
       }
     }
   }

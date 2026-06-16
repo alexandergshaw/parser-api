@@ -1,9 +1,8 @@
-"""Specific subtopic / keyword extraction via a pure-Python RAKE implementation.
+"""Specific keyword extraction via a pure-Python RAKE implementation.
 
-RAKE (Rapid Automatic Keyword Extraction) is unsupervised, single-document, and
-deterministic: it splits text into candidate phrases at stopwords/punctuation, then
-scores words by degree/frequency and phrases by the sum of their word scores. No
-model, no corpus, no network.
+Unsupervised, single-document, deterministic: split text into candidate phrases at
+stopwords/punctuation, score words by degree/frequency and phrases by the sum of
+their word scores. No model, no corpus, no network.
 """
 
 from __future__ import annotations
@@ -12,7 +11,6 @@ from collections import Counter
 from dataclasses import dataclass
 
 from .classify import ScoredCategory
-from .normalize import singularize, tokenize
 
 _MIN_WORD_LEN = 2
 _MAX_PHRASE_WORDS = 4
@@ -20,12 +18,11 @@ _MAX_PHRASE_WORDS = 4
 
 @dataclass
 class Keyword:
-    term: str  # lowercased, de-punctuated — stable join/dedup key (never changes)
+    term: str  # lowercased, de-punctuated — stable join/dedup key
     score: float
     source: str  # "rake" | "lexicon" | "rake+lexicon"
-    display: str | None = None  # human-facing casing ("ETL", "CI/CD", source casing)
-    related: str | None = None  # label of the broad emphasis this keyword falls under
-    related_id: str | None = None  # stable id of that emphasis (e.g. "data_science")
+    display: str | None = None  # human-facing casing
+    related: dict[str, str] | None = None  # {id, label} of the parent emphasis, or None
 
 
 def _render(term: str, surface_index: dict[str, str]) -> str:
@@ -48,7 +45,6 @@ def _candidate_phrases(
                 current.append(tok)
         if current:
             phrases.append(tuple(current))
-    # Drop overly long runs that are usually noise rather than a real keyphrase.
     return [p for p in phrases if 1 <= len(p) <= _MAX_PHRASE_WORDS]
 
 
@@ -57,10 +53,7 @@ def rake(
     stopwords: frozenset[str],
     surface_index: dict[str, str],
 ) -> list[Keyword]:
-    """Rank candidate keyphrases by RAKE score, normalized to [0, 1].
-
-    ``surface_index`` provides the source casing used for each keyword's ``display``.
-    """
+    """Rank candidate keyphrases by RAKE score, normalized to [0, 1]."""
     phrases = _candidate_phrases(chunks, stopwords)
     if not phrases:
         return []
@@ -83,12 +76,7 @@ def rake(
 
     top = max(phrase_scores.values())
     return [
-        Keyword(
-            term=term,
-            score=round(score / top, 4),
-            source="rake",
-            display=_render(term, surface_index),
-        )
+        Keyword(term=term, score=round(score / top, 4), source="rake", display=_render(term, surface_index))
         for term, score in sorted(phrase_scores.items(), key=lambda kv: kv[1], reverse=True)
     ]
 
@@ -100,14 +88,11 @@ def merge_keywords(
 ) -> list[Keyword]:
     """Merge RAKE phrases with classifier evidence terms, dedupe, and re-rank.
 
-    A term found by both sources is tagged ``rake+lexicon`` and slightly boosted,
-    since agreement across an unsupervised and a curated signal is meaningful.
+    The join key is the lowercased surface; the human-facing form is the taxonomy's
+    authored display. A term found by both sources is tagged ``rake+lexicon``.
     """
     merged: dict[str, Keyword] = {kw.term: kw for kw in rake_keywords}
 
-    # Lexicon evidence from the strongest categories, scored by rank position. The
-    # join key is the lowercased surface (so it dedupes against RAKE terms); the
-    # human-facing form is the taxonomy's authored display.
     for rank, cat in enumerate(scored[:4]):
         base = max(0.3, 1.0 - rank * 0.2)
         for i, key in enumerate(cat.matched_keys):
@@ -122,30 +107,8 @@ def merge_keywords(
                     term=term,
                     score=min(1.0, round(max(existing.score, lex_score) + 0.1, 4)),
                     source="rake+lexicon",
-                    display=disp or existing.display,  # prefer authored display
+                    display=disp or existing.display,
                 )
 
     ranked = sorted(merged.values(), key=lambda kw: kw.score, reverse=True)
     return ranked[:max_keywords]
-
-
-def assign_related_emphasis(keywords: list[Keyword], scored: list[ScoredCategory]) -> None:
-    """Tag each keyword with the highest-ranked emphasis it shares a stem with.
-
-    This links the specific subtopics back to their broad parent label so the
-    researcher API can drive both general and deep-dive research from one response.
-    """
-    cat_tokens: list[tuple[str, str, set[str]]] = []
-    for cat in scored:
-        toks: set[str] = set()
-        for key in cat.matched_keys:
-            toks.update(key.split())
-        cat_tokens.append((cat.label, cat.id, toks))
-
-    for kw in keywords:
-        kw_tokens = {singularize(tok) for tok in tokenize(kw.term)}
-        for label, cat_id, toks in cat_tokens:
-            if kw_tokens & toks:
-                kw.related = label
-                kw.related_id = cat_id
-                break

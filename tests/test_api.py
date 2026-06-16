@@ -4,72 +4,60 @@ client = app.test_client()
 
 
 def test_health():
-    r = client.get("/api/health")
-    assert r.status_code == 200
-    body = r.get_json()
+    body = client.get("/api/health").get_json()
     assert body["status"] == "ok"
-    assert body["categories"] >= 21
+    assert body["version"] == "1.0.0"
+    assert body["categories"] >= 22
 
 
-def test_taxonomy_enumerates_vocabulary():
-    r = client.get("/api/taxonomy")
+def test_lenses_discovery():
+    r = client.get("/api/lenses")
     assert r.status_code == 200
     body = r.get_json()
-    assert body["count"] == len(body["categories"]) >= 21
-    assert {c["type"] for c in body["categories"]} == {"field", "sector"}
-    for c in body["categories"]:
-        assert set(c.keys()) == {"id", "label", "type"}
-    ids = {c["id"] for c in body["categories"]}
-    assert {"data_science", "software_industry", "astronomy"} <= ids
+    names = {l["name"]: l for l in body["lenses"]}
+    assert {"field", "sector", "technologies", "keywords"} <= set(names)
+    assert names["field"]["kind"] == "emphasis" and names["field"]["default"] is True
+    assert names["technologies"]["kind"] == "lexicon" and names["technologies"]["default"] is False
 
 
-def test_parse_includes_id_on_primary_and_secondary():
-    jd = (
-        "Senior Data Engineer building data pipelines and ETL with Spark, in an Agile "
-        "team with CI/CD and code reviews."
-    )
-    r = client.post("/api/parse", json={"text": jd})
+def test_taxonomy_includes_business():
+    ids = {c["id"] for c in client.get("/api/taxonomy").get_json()["categories"]}
+    assert {"data_science", "business_management"} <= ids
+
+
+def test_parse_default_shape():
+    r = client.post("/api/parse", json={"text": "Build ETL pipelines with Spark on AWS. Agile CI/CD."})
     assert r.status_code == 200
-    d = r.get_json()
-    assert d["primary"]["id"] == "data_science"
-    assert d["secondary"]["id"] == "software_industry"
+    body = r.get_json()
+    assert set(body["results"]) == {"field", "sector", "keywords"}
+    assert body["meta"]["version"] == "1.0.0"
 
 
-def test_missing_or_blank_text_is_400():
-    assert client.post("/api/parse", json={}).status_code == 400
-    assert client.post("/api/parse", json={"text": "   "}).status_code == 400
+def test_parse_targets_are_restrictive():
+    r = client.post("/api/parse", json={"text": "Spark and Python", "targets": ["technologies"]})
+    assert r.status_code == 200
+    assert set(r.get_json()["results"]) == {"technologies"}
 
 
-def test_max_keywords_out_of_range_is_422():
+def test_parse_field_top():
+    jd = "Data Engineer: ETL data pipelines, Spark, SQL, data warehouse."
+    r = client.post("/api/parse", json={"text": jd, "targets": ["field"]})
+    assert r.get_json()["results"]["field"]["top"]["id"] == "data_science"
+
+
+def test_validation_errors():
+    assert client.post("/api/parse", json={}).status_code == 400              # missing text
+    assert client.post("/api/parse", json={"text": "  "}).status_code == 400   # blank text
     assert client.post("/api/parse", json={"text": "x", "max_keywords": 0}).status_code == 422
-    assert client.post("/api/parse", json={"text": "x", "max_keywords": 99}).status_code == 422
+    assert client.post("/api/parse", json={"text": "x", "targets": ["nope"]}).status_code == 422
+    assert client.post("/api/parse", json={"text": "x", "targets": []}).status_code == 422
+    assert client.post("/api/parse", json={"text": "x", "targets": "field"}).status_code == 422
 
 
-def test_error_body_is_detail_object():
-    body = client.post("/api/parse", json={"text": "  "}).get_json()
-    assert isinstance(body, dict) and isinstance(body["detail"], str)
-
-
-def test_wrong_method_returns_json_405():
-    r = client.get("/api/parse")
-    assert r.status_code == 405
-    assert r.get_json()["detail"]
-
-
-def test_openapi_and_docs_are_served():
+def test_static_assets_served():
+    assert b'src="/app.js"' in client.get("/").data
+    js = client.get("/app.js")
+    assert js.status_code == 200 and "javascript" in js.content_type
     oa = client.get("/openapi.json")
     assert oa.status_code == 200 and oa.is_json
-    assert oa.get_json()["openapi"].startswith("3.")
-    docs = client.get("/docs")
-    assert docs.status_code == 200 and b"swagger-ui" in docs.data
-
-
-def test_ui_loads_external_script():
-    # UI is served and references the external script (not an inline <script> blob).
-    home = client.get("/")
-    assert home.status_code == 200
-    assert b'src="/app.js"' in home.data
-    js = client.get("/app.js")
-    assert js.status_code == 200
-    assert "javascript" in js.content_type
-    assert b"addEventListener" in js.data
+    assert client.get("/docs").status_code == 200

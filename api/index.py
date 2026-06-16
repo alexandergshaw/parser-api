@@ -19,6 +19,7 @@ from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
 
 from parser import __version__, parse
+from parser.lenses import get_lenses
 from parser.pipeline import DEFAULT_CONFIDENCE_THRESHOLD, DEFAULT_MAX_KEYWORDS
 from parser.taxonomy import get_taxonomy
 
@@ -63,8 +64,9 @@ CORS(
     allow_headers=["Content-Type", "X-API-Key"],
 )
 
-# Build + cache the taxonomy at import (cold start) so the first request is fast.
+# Build + cache the taxonomy and lens registry at import (cold start).
 get_taxonomy()
+get_lenses()
 
 
 def _error(status: int, detail: str):
@@ -97,6 +99,20 @@ def taxonomy():
     return jsonify({"version": __version__, "count": len(categories), "categories": categories})
 
 
+@app.get("/api/lenses")
+def lenses():
+    """Enumerate the available extraction lenses a caller can request via `targets`."""
+    reg = get_lenses()
+    return jsonify(
+        {
+            "version": __version__,
+            "lenses": [
+                {"name": l.name, "kind": l.kind, "default": l.default} for l in reg.values()
+            ],
+        }
+    )
+
+
 @app.post("/api/parse")
 def parse_text():
     body = request.get_json(silent=True)
@@ -114,7 +130,19 @@ def parse_text():
     if isinstance(max_keywords, bool) or not isinstance(max_keywords, int) or not 1 <= max_keywords <= 50:
         return _error(422, "`max_keywords` must be an integer between 1 and 50.")
 
-    result = parse(text, max_keywords=max_keywords, confidence_threshold=CONFIDENCE_THRESHOLD)
+    targets = body.get("targets")
+    if targets is not None and not isinstance(targets, list):
+        return _error(422, "`targets` must be an array of lens names.")
+
+    try:
+        result = parse(
+            text,
+            targets=targets,
+            max_keywords=max_keywords,
+            confidence_threshold=CONFIDENCE_THRESHOLD,
+        )
+    except ValueError as exc:  # unknown/empty target or malformed target item
+        return _error(422, str(exc))
     return jsonify(result)
 
 

@@ -1,7 +1,8 @@
-"""Broad-emphasis classifier: weighted lexicon scoring over the taxonomy.
+"""Emphasis scoring + per-axis lens building.
 
-Deterministic and explainable — every category's score is the sum of its matched
-terms' contributions, and the matched terms are returned as evidence.
+Deterministic and explainable: each category's score is the sum of its matched
+terms' contributions; matched terms are returned as evidence. Scores are normalized
+*within an axis* (a field's share among fields), so different axes are independent.
 """
 
 from __future__ import annotations
@@ -9,46 +10,33 @@ from __future__ import annotations
 import math
 from collections import Counter
 from dataclasses import dataclass
+from typing import Any
 
+from .normalize import singularize, tokenize
 from .taxonomy import Taxonomy
+
+# A category whose entire evidence is a single low-weight (ambiguous, common-word)
+# term is treated as noise, not an emphasis.
+_MIN_STRONG_WEIGHT = 2.0
 
 
 @dataclass
 class ScoredCategory:
     id: str
     label: str
-    type: str
-    score: float            # normalized share in [0, 1] across all categories
-    raw_score: float        # unnormalized weighted-match score
-    matched_terms: list[str]  # authored display evidence, strongest contribution first
-    matched_keys: list[str] = None    # canonical (stemmed) keys, aligned (for linking)
-    matched_surfaces: list[str] = None  # lowercased un-stemmed forms, aligned (join keys)
-
-    def __post_init__(self) -> None:
-        if self.matched_keys is None:
-            self.matched_keys = []
-        if self.matched_surfaces is None:
-            self.matched_surfaces = []
-
-
-# A category whose entire evidence is a single low-weight (ambiguous, common-word)
-# term is treated as noise, not an emphasis. Qualifying requires >=2 matched terms
-# or at least one specific term at this weight.
-_MIN_STRONG_WEIGHT = 2.0
+    type: str               # axis: "field" | "sector" | ...
+    raw_score: float
+    matched_terms: list[str]    # authored display evidence, strongest first
+    matched_keys: list[str]     # canonical (stemmed) keys, aligned
+    matched_surfaces: list[str] # lowercased un-stemmed forms, aligned
 
 
 def _term_contribution(weight: float, count: int, idf: float) -> float:
-    # Sub-linear in count so a term repeated 50x doesn't dominate; weight x IDF
-    # scale strong/specific signals above ambiguous ones.
     return weight * (1.0 + math.log(count)) * idf
 
 
 def classify(ngram_counts: Counter[str], taxonomy: Taxonomy) -> list[ScoredCategory]:
-    """Score every category against the document's n-gram counts.
-
-    Returns categories sorted by raw score (desc). ``score`` is each category's
-    share of the total matched signal, so scores sum to ~1 across the result.
-    """
+    """Score every category against the document's n-gram counts (sorted by raw desc)."""
     scored: list[ScoredCategory] = []
     for cat in taxonomy.categories:
         raw = 0.0
@@ -64,40 +52,54 @@ def classify(ngram_counts: Counter[str], taxonomy: Taxonomy) -> list[ScoredCateg
                 max_weight = max(max_weight, weight)
         if raw <= 0:
             continue
-        # Drop noise: a lone ambiguous (low-weight) term is not a real emphasis.
         if len(contributions) < 2 and max_weight < _MIN_STRONG_WEIGHT:
-            continue
+            continue  # lone ambiguous term -> not a real emphasis
         contributions.sort(reverse=True)
         scored.append(
             ScoredCategory(
                 id=cat.id,
                 label=cat.label,
                 type=cat.type,
-                score=0.0,  # filled in after normalization
                 raw_score=raw,
-                matched_terms=[cat.display.get(key, key) for _, key in contributions],
-                matched_keys=[key for _, key in contributions],
-                matched_surfaces=[cat.surface.get(key, key) for _, key in contributions],
+                matched_terms=[cat.display.get(k, k) for _, k in contributions],
+                matched_keys=[k for _, k in contributions],
+                matched_surfaces=[cat.surface.get(k, k) for _, k in contributions],
             )
         )
-
-    total = sum(s.raw_score for s in scored)
-    if total > 0:
-        for s in scored:
-            s.score = round(s.raw_score / total, 4)
-
     scored.sort(key=lambda s: s.raw_score, reverse=True)
     return scored
 
 
-def pick_primary_secondary(
-    scored: list[ScoredCategory],
-) -> tuple[ScoredCategory | None, ScoredCategory | None]:
-    """Primary = top overall; secondary = top of the *other* axis (falls back to #2)."""
-    if not scored:
-        return None, None
-    primary = scored[0]
-    secondary = next((s for s in scored[1:] if s.type != primary.type), None)
-    if secondary is None and len(scored) > 1:
-        secondary = scored[1]
-    return primary, secondary
+def link_term(term: str, scored: list[ScoredCategory]) -> dict[str, str] | None:
+    """Link a term to the highest-ranked emphasis sharing a (stemmed) token, else None."""
+    tokens = {singularize(tok) for tok in tokenize(term)}
+    for cat in scored:  # already sorted by raw desc
+        cat_tokens: set[str] = set()
+        for key in cat.matched_keys:
+            cat_tokens.update(key.split())
+        if tokens & cat_tokens:
+            return {"id": cat.id, "label": cat.label}
+    return None
+
+
+def emphasis_lens(
+    scored: list[ScoredCategory], axis: str, threshold: float, limit: int | None = None
+) -> dict[str, Any]:
+    """Build an emphasis-lens result for one axis, normalized within that axis."""
+    cats = [c for c in scored if c.type == axis]
+    total = sum(c.raw_score for c in cats)
+    ranked = [
+        {
+            "id": c.id,
+            "label": c.label,
+            "score": round(c.raw_score / total, 4) if total else 0.0,
+            "matched_terms": c.matched_terms[:8],
+        }
+        for c in cats  # scored already sorted by raw desc
+    ]
+    top = None
+    if ranked:
+        top = {**ranked[0], "low_confidence": ranked[0]["score"] < threshold}
+    if limit is not None:
+        ranked = ranked[:limit]
+    return {"kind": "emphasis", "top": top, "ranked": ranked}

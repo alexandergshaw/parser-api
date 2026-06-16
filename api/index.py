@@ -42,6 +42,7 @@ def _asset(rel: str) -> Path:
 # NB: assets live in web/ (NOT public/) — Vercel reserves public/ for static
 # output and excludes it from the serverless function bundle.
 _UI_PATH = _asset("web/index.html")
+_JS_PATH = _asset("web/app.js")
 _OPENAPI_PATH = _asset("web/openapi.json")
 
 MAX_TEXT_CHARS = 50_000
@@ -151,10 +152,14 @@ def docs():
 def ui():
     if not _UI_PATH.exists():
         return Response("<h1>Parser API</h1><p>See <a href='/docs'>/docs</a>.</p>", mimetype="text/html")
-    # Inject the key so the same-origin testing UI can call a protected endpoint.
-    # (Internal tool: anyone who can load this page can read the key.)
-    html = _UI_PATH.read_text(encoding="utf-8").replace("__API_KEY__", API_KEY)
-    return Response(html, mimetype="text/html")
+    return Response(_UI_PATH.read_text(encoding="utf-8"), mimetype="text/html")
+
+
+@app.get("/app.js")
+def app_js():
+    if not _JS_PATH.exists():
+        return _error(404, "app.js not found.")
+    return Response(_JS_PATH.read_text(encoding="utf-8"), mimetype="text/javascript")
 
 
 @app.errorhandler(404)

@@ -62,3 +62,14 @@ def test_openapi_and_docs_are_served():
     assert oa.get_json()["openapi"].startswith("3.")
     docs = client.get("/docs")
     assert docs.status_code == 200 and b"swagger-ui" in docs.data
+
+
+def test_ui_loads_external_script():
+    # UI is served and references the external script (not an inline <script> blob).
+    home = client.get("/")
+    assert home.status_code == 200
+    assert b'src="/app.js"' in home.data
+    js = client.get("/app.js")
+    assert js.status_code == 200
+    assert "javascript" in js.content_type
+    assert b"addEventListener" in js.data

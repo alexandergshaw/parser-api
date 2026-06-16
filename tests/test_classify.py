@@ -51,12 +51,12 @@ def test_idf_downweights_shared_terms(tmp_path):
     (tmp_path / "fields.json").write_text(
         json.dumps(
             [
-                {"id": "a", "label": "A", "terms": [{"term": "common"}, {"term": "rare_a"}]},
-                {"id": "b", "label": "B", "terms": [{"term": "common"}, {"term": "rare_b"}]},
-                {"id": "c", "label": "C", "terms": [{"term": "common"}, {"term": "rare_c"}]},
+                {"id": "a", "label": "A", "terms": [{"term": "common"}, {"term": "alpha"}]},
+                {"id": "b", "label": "B", "terms": [{"term": "common"}, {"term": "beta"}]},
+                {"id": "c", "label": "C", "terms": [{"term": "common"}, {"term": "gamma"}]},
             ]
         ),
         encoding="utf-8",
     )
     tax = load_taxonomy(tmp_path)
-    assert tax.idf["common"] < tax.idf["rare_a"]
+    assert tax.idf["common"] < tax.idf["alpha"]

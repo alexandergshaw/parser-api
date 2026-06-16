@@ -6,7 +6,7 @@ STOP = load_stopwords()
 
 
 def test_rake_extracts_multiword_phrases():
-    kws = rake(to_chunks("Scalable data pipelines power machine learning models."), STOP)
+    kws = rake(to_chunks("We build scalable data pipelines for machine learning."), STOP)
     assert any(" " in k.term for k in kws)
     assert all(0.0 <= k.score <= 1.0 for k in kws)
 

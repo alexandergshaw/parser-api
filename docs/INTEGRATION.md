@@ -1,4 +1,4 @@
-# Parser API — Integration Spec (v1.0.0)
+# Parser API — Integration Spec (v1.1.0)
 
 Canonical integration reference. The Parser API is a standalone, deterministic, **no-LLM** text
 extraction service. It is **lens-oriented**: you tell it which lenses to apply via `targets`, and it
@@ -6,17 +6,18 @@ returns a result per lens. It is domain-general and contains no résumé/job/HR-
 
 ## 1. Lenses (the core concept)
 
-A **lens** is one way of looking at the text. Three kinds:
+A **lens** is one way of looking at the text. Four kinds:
 
 | Kind | Returns | Examples |
 |---|---|---|
 | `emphasis` | Ranked categories of one taxonomy **axis**, normalized within that axis (`top` + `ranked`) | `field`, `sector` |
 | `lexicon` | Which terms from a curated list appear, each linked to the doc's relevant emphasis | `technologies` |
 | `keywords` | Unsupervised RAKE keyphrases | `keywords` |
+| `tone` | Multi-dimensional tone profile — independent 0–1 dimensions | `tone` |
 
 Lenses are **data-driven and discoverable** — fetch the live set from `GET /api/lenses`. The current
 built-ins: `field` (emphasis, default), `sector` (emphasis, default), `technologies` (lexicon),
-`keywords` (default).
+`tone` (tone), `keywords` (default).
 
 **Guarantees:** deterministic (same input + `meta.version` ⇒ byte-identical output, incl. casing),
 stateless/idempotent, explainable (every emphasis ships its `matched_terms`), self-describing
@@ -42,15 +43,16 @@ stateless/idempotent, explainable (every emphasis ships its `matched_terms`), se
 
 ```jsonc
 // GET /api/lenses
-{ "version": "1.0.0", "lenses": [
+{ "version": "1.1.0", "lenses": [
   { "name": "field",        "kind": "emphasis", "default": true },
   { "name": "sector",       "kind": "emphasis", "default": true },
   { "name": "technologies", "kind": "lexicon",  "default": false },
+  { "name": "tone",         "kind": "tone",     "default": false },
   { "name": "keywords",     "kind": "keywords", "default": true }
 ] }
 
 // GET /api/health
-{ "status": "ok", "version": "1.0.0", "categories": 22 }
+{ "status": "ok", "version": "1.1.0", "categories": 22 }
 ```
 
 ## 5. `POST /api/parse` — Request
@@ -100,7 +102,7 @@ Real response for `targets: ["field","technologies","keywords"], max_keywords: 4
       ]
     }
   },
-  "meta": { "token_count": 26, "version": "1.0.0" }
+  "meta": { "token_count": 26, "version": "1.1.0" }
 }
 ```
 
@@ -117,6 +119,20 @@ shape of each value depends on `kind`:
 **keywords** → `{ kind, items: [{ term, display, score, source, related }] }`. `term` lowercased
 (stable join/dedup key); `display` human-facing; `score` ∈ [0,1] (ordering only); `source` ∈
 `rake | lexicon | rake+lexicon`; `related` `{id,label}` or `null`.
+
+**tone** → `{ kind, dimensions: [{ name, label, score, leaning, evidence }] }`. Independent
+dimensions (not competing). `score` ∈ [0,1]. Bipolar dims (`formality`, `sentiment`) report a
+`leaning` of either pole or `"neutral"` (0.5 = balanced); unipolar dims (`urgency`, `enthusiasm`)
+report intensity (0 = absent) with `leaning` the dimension's label or `"neutral"`. `evidence` lists
+the cue words that drove the score. Example:
+```jsonc
+"tone": { "kind": "tone", "dimensions": [
+  { "name": "formality",  "label": "Formality",  "score": 0.82, "leaning": "formal",       "evidence": ["furthermore","pursuant"] },
+  { "name": "sentiment",  "label": "Sentiment",  "score": 0.67, "leaning": "positive",     "evidence": ["excellent","strong"] },
+  { "name": "urgency",    "label": "Urgency",    "score": 0.40, "leaning": "neutral",      "evidence": ["deadline"] },
+  { "name": "enthusiasm", "label": "Enthusiasm", "score": 0.00, "leaning": "neutral",      "evidence": [] }
+] }
+```
 
 **meta** → `{ token_count, version }`.
 
@@ -152,6 +168,6 @@ techs = [m["display"] for m in res["technologies"]["matched"]]
 4. Cache on `sha256(text) + sorted(targets) + meta.version`.
 
 ## 11. Versioning
-`meta.version` / `/api/health` / `/api/taxonomy` / `/api/lenses` report semver (currently `1.0.0`).
-1.0.0 is the lens-oriented contract; pin to it and re-fetch `/api/lenses` + `/api/taxonomy` on minor
+`meta.version` / `/api/health` / `/api/taxonomy` / `/api/lenses` report semver (currently `1.1.0`).
+1.1.0 is the lens-oriented contract; pin to it and re-fetch `/api/lenses` + `/api/taxonomy` on minor
 bumps (which may grow lenses/vocabulary).

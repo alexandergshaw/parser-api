@@ -156,7 +156,21 @@ function renderLens(r) {
   if (r.kind === 'emphasis') return renderEmphasis(r);
   if (r.kind === 'lexicon') return renderLexicon(r);
   if (r.kind === 'keywords') return renderKeywords(r);
+  if (r.kind === 'tone') return renderTone(r);
   return '';
+}
+
+function renderTone(r) {
+  const dims = r.dimensions || [];
+  if (!dims.length) return '<div class="empty">none</div>';
+  return dims.map((d) => {
+    const ev = (d.evidence || []).map((e) => `<span class="chip">${escapeHtml(e)}</span>`).join('');
+    return `<div class="item"><span class="nm">${escapeHtml(d.label)}
+        <span class="kind">${escapeHtml(d.leaning || '')}</span></span>
+      <span class="bar"><i style="width:${pct(d.score)}%"></i></span>
+      <span class="pct">${pct(d.score)}%</span></div>` +
+      (ev ? `<div class="chips" style="margin:-2px 0 8px 0">${ev}</div>` : '');
+  }).join('');
 }
 
 function renderEmphasis(r) {

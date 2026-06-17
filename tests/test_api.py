@@ -6,7 +6,7 @@ client = app.test_client()
 def test_health():
     body = client.get("/api/health").get_json()
     assert body["status"] == "ok"
-    assert body["version"] == "1.0.0"
+    assert body["version"] == "1.1.0"
     assert body["categories"] >= 22
 
 
@@ -20,6 +20,19 @@ def test_lenses_discovery():
     assert names["technologies"]["kind"] == "lexicon" and names["technologies"]["default"] is False
 
 
+def test_lenses_includes_tone():
+    names = {l["name"]: l for l in client.get("/api/lenses").get_json()["lenses"]}
+    assert "tone" in names and names["tone"]["kind"] == "tone" and names["tone"]["default"] is False
+
+
+def test_parse_tone_target():
+    r = client.post("/api/parse", json={"text": "Pursuant to the agreement, respond immediately.",
+                                        "targets": ["tone"]})
+    assert r.status_code == 200
+    dims = r.get_json()["results"]["tone"]["dimensions"]
+    assert {d["name"] for d in dims} == {"formality", "sentiment", "urgency", "enthusiasm"}
+
+
 def test_taxonomy_includes_business():
     ids = {c["id"] for c in client.get("/api/taxonomy").get_json()["categories"]}
     assert {"data_science", "business_management"} <= ids
@@ -30,7 +43,7 @@ def test_parse_default_shape():
     assert r.status_code == 200
     body = r.get_json()
     assert set(body["results"]) == {"field", "sector", "keywords"}
-    assert body["meta"]["version"] == "1.0.0"
+    assert body["meta"]["version"] == "1.1.0"
 
 
 def test_parse_targets_are_restrictive():

@@ -1,0 +1,26 @@
+[
+  {
+    "name": "formality", "label": "Formality", "high_label": "formal", "low_label": "casual",
+    "high": ["furthermore", "therefore", "pursuant", "accordingly", "moreover", "consequently",
+             "utilize", "herein", "whereas", "aforementioned", "commence", "endeavor", "regarding"],
+    "low": ["gonna", "wanna", "kinda", "stuff", "cool", "awesome", "guys", "yeah", "ok", "lots",
+            "super", "totally"]
+  },
+  {
+    "name": "sentiment", "label": "Sentiment", "high_label": "positive", "low_label": "negative",
+    "high": ["excellent", "great", "strong", "success", "successful", "benefit", "outstanding",
+             "effective", "valuable", "robust", "improve", "thrive", "opportunity"],
+    "low": ["poor", "fail", "failure", "risk", "problem", "difficult", "weak", "decline", "concern",
+            "lack", "issue", "struggle", "negative"]
+  },
+  {
+    "name": "urgency", "label": "Urgency", "high_label": "urgent",
+    "high": ["immediately", "urgent", "asap", "deadline", "critical", "time-sensitive", "promptly",
+             "expedite", "now", "must", "required", "deadlines"]
+  },
+  {
+    "name": "enthusiasm", "label": "Enthusiasm", "high_label": "enthusiastic",
+    "high": ["excited", "thrilled", "passionate", "love", "amazing", "incredible", "fantastic",
+             "eager", "delighted", "wonderful", "enthusiastic", "energy"]
+  }
+]

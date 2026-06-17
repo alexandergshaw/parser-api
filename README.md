@@ -11,6 +11,7 @@ You pass which lenses to apply (`targets`); the API returns a result per lens:
 - **lexicon** lenses (e.g. `technologies`) report which terms from a curated list appear, each linked
   to the document's relevant emphasis.
 - **keywords** lens returns unsupervised RAKE keyphrases lifted from *this* document.
+- **tone** lens returns a multi-dimensional tone profile (formality, sentiment, urgency, enthusiasm).
 
 The downstream **researcher API** consumes these: emphases drive general research; keywords and
 detected technologies drive deep-dive research.
@@ -84,7 +85,7 @@ pytest                          # run the test suite
                      "related": { "id": "data_science", "label": "Data Science" } } ]
     }
   },
-  "meta": { "token_count": 26, "version": "1.0.0" }
+  "meta": { "token_count": 26, "version": "1.1.0" }
 }
 ```
 
@@ -153,6 +154,6 @@ category only surfaces with ≥2 matched terms or one weight-≥2 term, so lone 
 false emphases. Optional `display` gives a term human-facing casing.
 
 **Caveats**
-- The lens must be one of the existing kinds (`emphasis` / `lexicon` / `keywords`). A genuinely new
-  *kind* of extraction needs code — a handler in `parser/pipeline.py` and a render branch in the UI.
+- The lens must be one of the existing kinds (`emphasis` / `lexicon` / `keywords` / `tone`). A
+  genuinely new *kind* needs code — a handler in `parser/pipeline.py` and a render branch in the UI.
 - The registry is cached at cold start, so a redeploy (or restart) is needed to pick up new data.

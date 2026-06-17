@@ -1,11 +1,12 @@
 """Lens registry — declares what the parser can extract, loaded from taxonomy/lenses.json.
 
-A lens is one of three kinds:
+A lens is one of these kinds:
 - ``emphasis``: rank taxonomy categories of one axis (e.g. field, sector).
 - ``lexicon``:  report which terms from a flat curated list appear (e.g. technologies).
 - ``keywords``: unsupervised RAKE keyphrases.
+- ``tone``:     multi-dimensional tone profile (e.g. formality, sentiment).
 
-Adding a new lens is data-only: edit lenses.json (+ a lexicon file for lexicon lenses).
+Adding a new lens is data-only: edit lenses.json (+ a data file for lexicon/tone lenses).
 """
 
 from __future__ import annotations
@@ -16,8 +17,9 @@ from functools import lru_cache
 
 from .lexicons import Lexicon, load_lexicon
 from .taxonomy import _default_dir
+from .tone import ToneModel, load_tones
 
-VALID_KINDS = {"emphasis", "lexicon", "keywords"}
+VALID_KINDS = {"emphasis", "lexicon", "keywords", "tone"}
 
 
 @dataclass
@@ -28,6 +30,7 @@ class Lens:
     source: str | None = None
     default: bool = False
     lexicon: Lexicon | None = None
+    tone: ToneModel | None = None
 
 
 @lru_cache(maxsize=1)
@@ -45,7 +48,9 @@ def get_lenses() -> dict[str, Lens]:
             default=bool(row.get("default", False)),
         )
         if lens.kind == "lexicon" and lens.source:
-            lens.lexicon = load_lexicon(_default_dir() / lens.source)
+            lens.lexicon = load_lexicon(base / lens.source)
+        elif lens.kind == "tone" and lens.source:
+            lens.tone = load_tones(base / lens.source)
         registry[lens.name] = lens
     return registry
 
@@ -61,5 +66,13 @@ def resolve_target(name: str) -> Lens:
     return registry[name]
 
 
-def max_lexicon_term_n() -> int:
-    return max((l.lexicon.max_term_n for l in get_lenses().values() if l.lexicon), default=1)
+def max_term_n() -> int:
+    """Longest cue/term (in tokens) across all lexicon + tone lenses, so n-gram
+    counting covers their multiword cues."""
+    best = 1
+    for lens in get_lenses().values():
+        if lens.lexicon:
+            best = max(best, lens.lexicon.max_term_n)
+        if lens.tone:
+            best = max(best, lens.tone.max_term_n)
+    return best

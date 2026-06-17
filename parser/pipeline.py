@@ -10,10 +10,11 @@ from typing import Any
 
 from .classify import ScoredCategory, classify, emphasis_lens, link_term
 from .keywords import merge_keywords, rake
-from .lenses import Lens, default_target_names, get_lenses, max_lexicon_term_n, resolve_target
+from .lenses import Lens, default_target_names, get_lenses, max_term_n, resolve_target
 from .lexicons import Lexicon
 from .normalize import build_surface_index, count_ngrams, load_stopwords, stem_chunks, to_chunks
 from .taxonomy import get_taxonomy
+from .tone import score_tone
 
 DEFAULT_MAX_KEYWORDS = 15
 DEFAULT_CONFIDENCE_THRESHOLD = 0.15
@@ -91,7 +92,7 @@ def parse(
     taxonomy = get_taxonomy()
     chunks = to_chunks(text)
     token_count = sum(len(c) for c in chunks)
-    max_n = max(taxonomy.max_term_n, max_lexicon_term_n())
+    max_n = max(taxonomy.max_term_n, max_term_n())
     ngram_counts = count_ngrams(stem_chunks(chunks), max_n)
     scored = classify(ngram_counts, taxonomy)
     surface_index = build_surface_index(text)
@@ -104,5 +105,7 @@ def parse(
             results[lens.name] = _lexicon_lens(lens.lexicon, ngram_counts, scored, limit)
         elif lens.kind == "keywords":
             results[lens.name] = _keywords_lens(chunks, scored, surface_index, max_keywords, limit)
+        elif lens.kind == "tone":
+            results[lens.name] = score_tone(lens.tone, ngram_counts, chunks, text)
 
     return {"results": results, "meta": {"token_count": token_count, "version": __version__}}

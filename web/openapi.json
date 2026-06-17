@@ -3,7 +3,7 @@
   "info": {
     "title": "Parser API",
     "description": "Deterministic, LLM-free text extraction organized by composable lenses (emphasis axes, curated lexicons, and RAKE keywords).",
-    "version": "1.0.0"
+    "version": "1.1.0"
   },
   "paths": {
     "/api/parse": {
@@ -84,7 +84,8 @@
               "oneOf": [
                 { "$ref": "#/components/schemas/EmphasisLens" },
                 { "$ref": "#/components/schemas/LexiconLens" },
-                { "$ref": "#/components/schemas/KeywordsLens" }
+                { "$ref": "#/components/schemas/KeywordsLens" },
+                { "$ref": "#/components/schemas/ToneLens" }
               ]
             }
           },
@@ -144,6 +145,25 @@
                 "score": { "type": "number" },
                 "source": { "type": "string", "enum": ["rake", "lexicon", "rake+lexicon"] },
                 "related": { "$ref": "#/components/schemas/Related" }
+              }
+            }
+          }
+        }
+      },
+      "ToneLens": {
+        "type": "object",
+        "properties": {
+          "kind": { "type": "string", "enum": ["tone"] },
+          "dimensions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "label": { "type": "string" },
+                "score": { "type": "number", "description": "0..1. Bipolar dims: 0.5 = balanced. Unipolar: 0 = absent." },
+                "leaning": { "type": "string", "description": "Pole label or 'neutral'." },
+                "evidence": { "type": "array", "items": { "type": "string" } }
               }
             }
           }

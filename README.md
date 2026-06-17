@@ -6,8 +6,8 @@ deterministically — structured extractions organized by **lenses** the caller 
 
 You pass which lenses to apply (`targets`); the API returns a result per lens:
 
-- **emphasis** lenses (e.g. `field`, `sector`) rank a curated taxonomy axis → the document's topic /
-  industry, each with the `matched_terms` that produced it.
+- **emphasis** lenses (e.g. `field`, `sector`, `intent`) rank a curated taxonomy axis → the document's
+  topic / industry / communicative goal, each with the `matched_terms` that produced it.
 - **lexicon** lenses (e.g. `technologies`) report which terms from a curated list appear, each linked
   to the document's relevant emphasis.
 - **keywords** lens returns unsupervised RAKE keyphrases lifted from *this* document.
@@ -85,7 +85,7 @@ pytest                          # run the test suite
                      "related": { "id": "data_science", "label": "Data Science" } } ]
     }
   },
-  "meta": { "token_count": 26, "version": "1.1.0" }
+  "meta": { "token_count": 26, "version": "1.2.0" }
 }
 ```
 

@@ -3,7 +3,7 @@
   "info": {
     "title": "Parser API",
     "description": "Deterministic, LLM-free text extraction organized by composable lenses (emphasis axes, curated lexicons, and RAKE keywords).",
-    "version": "1.1.0"
+    "version": "1.2.0"
   },
   "paths": {
     "/api/parse": {
@@ -194,7 +194,7 @@
               "type": "object",
               "properties": {
                 "name": { "type": "string" },
-                "kind": { "type": "string", "enum": ["emphasis", "lexicon", "keywords"] },
+                "kind": { "type": "string", "enum": ["emphasis", "lexicon", "keywords", "tone"] },
                 "default": { "type": "boolean" }
               }
             }

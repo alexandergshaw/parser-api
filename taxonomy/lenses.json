@@ -1,6 +1,7 @@
 [
   { "name": "field",        "kind": "emphasis", "axis": "field",  "default": true },
   { "name": "sector",       "kind": "emphasis", "axis": "sector", "default": true },
+  { "name": "intent",       "kind": "emphasis", "axis": "intent", "default": false },
   { "name": "technologies", "kind": "lexicon",  "source": "lexicons/technologies.json", "default": false },
   { "name": "tone",         "kind": "tone",     "source": "lexicons/tones.json", "default": false },
   { "name": "keywords",     "kind": "keywords", "default": true }

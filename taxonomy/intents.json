@@ -1,0 +1,112 @@
+[
+  {
+    "id": "hiring", "label": "Hiring & Recruiting", "type": "intent",
+    "aliases": ["recruiting", "job posting"],
+    "terms": [
+      { "term": "we are seeking", "weight": 3 },
+      { "term": "join our team", "weight": 3 },
+      { "term": "job description", "weight": 3 },
+      { "term": "preferred qualifications", "weight": 3 },
+      { "term": "equal opportunity employer", "weight": 3 },
+      { "term": "hiring", "weight": 3 },
+      { "term": "recruiting", "weight": 3 },
+      { "term": "seeking", "weight": 1 },
+      { "term": "qualifications", "weight": 2 },
+      { "term": "responsibilities", "weight": 2 },
+      { "term": "candidate", "weight": 2 },
+      { "term": "applicant", "weight": 2 },
+      { "term": "cover letter", "weight": 2 },
+      { "term": "benefits package", "weight": 2 }
+    ]
+  },
+  {
+    "id": "teaching", "label": "Teaching & Explaining", "type": "intent",
+    "aliases": ["educating", "explaining"],
+    "terms": [
+      { "term": "learning objectives", "weight": 3 },
+      { "term": "you will learn", "weight": 3 },
+      { "term": "in this tutorial", "weight": 3 },
+      { "term": "this course", "weight": 3 },
+      { "term": "introduction to", "weight": 2 },
+      { "term": "lesson", "weight": 2 },
+      { "term": "explained", "weight": 1 },
+      { "term": "walkthrough", "weight": 2 },
+      { "term": "let us explore", "weight": 2 }
+    ]
+  },
+  {
+    "id": "selling", "label": "Selling & Promoting", "type": "intent",
+    "aliases": ["marketing", "promotion"],
+    "terms": [
+      { "term": "sign up", "weight": 3 },
+      { "term": "limited time", "weight": 3 },
+      { "term": "special offer", "weight": 3 },
+      { "term": "buy now", "weight": 3 },
+      { "term": "order now", "weight": 3 },
+      { "term": "free trial", "weight": 3 },
+      { "term": "money back guarantee", "weight": 3 },
+      { "term": "act now", "weight": 3 },
+      { "term": "discount", "weight": 2 },
+      { "term": "pricing", "weight": 2 },
+      { "term": "subscribe", "weight": 2 }
+    ]
+  },
+  {
+    "id": "informing", "label": "Informing & Reporting", "type": "intent",
+    "aliases": ["reporting", "news"],
+    "terms": [
+      { "term": "results show", "weight": 3 },
+      { "term": "study found", "weight": 3 },
+      { "term": "research suggests", "weight": 3 },
+      { "term": "data shows", "weight": 3 },
+      { "term": "according to", "weight": 2 },
+      { "term": "findings", "weight": 2 },
+      { "term": "as reported", "weight": 2 },
+      { "term": "the report", "weight": 2 },
+      { "term": "survey", "weight": 1 }
+    ]
+  },
+  {
+    "id": "instructing", "label": "Instructional (How-to)", "type": "intent",
+    "aliases": ["how to", "tutorial"],
+    "terms": [
+      { "term": "step by step", "weight": 3 },
+      { "term": "how to", "weight": 3 },
+      { "term": "follow these steps", "weight": 3 },
+      { "term": "run the following", "weight": 3 },
+      { "term": "click", "weight": 2 },
+      { "term": "install", "weight": 2 },
+      { "term": "configure", "weight": 2 },
+      { "term": "instructions", "weight": 2 },
+      { "term": "first step", "weight": 2 }
+    ]
+  },
+  {
+    "id": "requesting", "label": "Requesting / Call-to-Action", "type": "intent",
+    "aliases": ["call to action", "request"],
+    "terms": [
+      { "term": "contact us", "weight": 3 },
+      { "term": "submit your", "weight": 3 },
+      { "term": "get in touch", "weight": 3 },
+      { "term": "please submit", "weight": 3 },
+      { "term": "register now", "weight": 3 },
+      { "term": "reach out", "weight": 2 },
+      { "term": "fill out", "weight": 2 },
+      { "term": "let us know", "weight": 2 }
+    ]
+  },
+  {
+    "id": "announcing", "label": "Announcing", "type": "intent",
+    "aliases": ["announcement"],
+    "terms": [
+      { "term": "excited to announce", "weight": 3 },
+      { "term": "proud to announce", "weight": 3 },
+      { "term": "now available", "weight": 3 },
+      { "term": "we are launching", "weight": 3 },
+      { "term": "introducing", "weight": 3 },
+      { "term": "announcing", "weight": 3 },
+      { "term": "coming soon", "weight": 2 },
+      { "term": "unveil", "weight": 2 }
+    ]
+  }
+]

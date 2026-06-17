@@ -6,7 +6,7 @@ client = app.test_client()
 def test_health():
     body = client.get("/api/health").get_json()
     assert body["status"] == "ok"
-    assert body["version"] == "1.1.0"
+    assert body["version"] == "1.2.0"
     assert body["categories"] >= 22
 
 
@@ -33,9 +33,23 @@ def test_parse_tone_target():
     assert {d["name"] for d in dims} == {"formality", "sentiment", "urgency", "enthusiasm"}
 
 
-def test_taxonomy_includes_business():
-    ids = {c["id"] for c in client.get("/api/taxonomy").get_json()["categories"]}
-    assert {"data_science", "business_management"} <= ids
+def test_lenses_includes_intent():
+    names = {l["name"]: l for l in client.get("/api/lenses").get_json()["lenses"]}
+    assert "intent" in names and names["intent"]["kind"] == "emphasis" and names["intent"]["default"] is False
+
+
+def test_taxonomy_includes_business_and_intent():
+    cats = client.get("/api/taxonomy").get_json()["categories"]
+    ids = {c["id"] for c in cats}
+    assert {"data_science", "business_management", "hiring"} <= ids
+    assert "intent" in {c["type"] for c in cats}
+
+
+def test_parse_intent_target():
+    r = client.post("/api/parse", json={"text": "We are seeking candidates to join our team.",
+                                        "targets": ["intent"]})
+    assert r.status_code == 200
+    assert r.get_json()["results"]["intent"]["top"]["id"] == "hiring"
 
 
 def test_parse_default_shape():
@@ -43,7 +57,7 @@ def test_parse_default_shape():
     assert r.status_code == 200
     body = r.get_json()
     assert set(body["results"]) == {"field", "sector", "keywords"}
-    assert body["meta"]["version"] == "1.1.0"
+    assert body["meta"]["version"] == "1.2.0"
 
 
 def test_parse_targets_are_restrictive():

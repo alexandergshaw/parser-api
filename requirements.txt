@@ -3,3 +3,6 @@
 # keeping the serverless bundle small and cold-starts fast.
 flask>=3.0
 flask-cors>=4.0
+# PDF text extraction. Pure-Python (no C extensions) — the lone ingestion dependency;
+# docx/pptx/xlsx are read with the stdlib (zipfile + xml.etree), no Office libraries.
+pypdf>=4.0

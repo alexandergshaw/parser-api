@@ -54,6 +54,20 @@
     color: var(--text); border: 1px solid var(--border); border-radius: 8px;
     padding: 12px; font: 16px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   }
+  input[type=file] { width: 100%; font-size: 13px; color: var(--muted);
+    background: var(--panel-2); border: 1px dashed var(--border); border-radius: 8px; padding: 10px 12px; }
+  input[type=file]::file-selector-button { background: var(--chip); color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px; margin-right: 12px;
+    font: inherit; cursor: pointer; }
+  .filelist { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .filelist:empty { display: none; }
+  .filelist .fitem { background: var(--chip); border: 1px solid var(--border); border-radius: 99px;
+    padding: 3px 10px; font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+  .sources { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+  .sources .src { font-size: 12px; color: var(--muted); display: flex; gap: 8px; align-items: baseline; }
+  .sources .src .nm { color: var(--text); overflow-wrap: anywhere; }
+  .sources .src.fail .nm { color: var(--warn); }
+  .sources .src .why { color: var(--bad); }
   .row { display: flex; align-items: center; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
   button {
     background: var(--accent); color: #06122b; border: 0; border-radius: 8px;
@@ -109,6 +123,23 @@
   .tgl input { width: 16px; height: 16px; flex: none; }
   .kind { color: var(--muted); font-size: 11px; }
   h3 .kind { text-transform: none; letter-spacing: 0; }
+
+  /* mode tabs */
+  .tabs { display: flex; gap: 4px; margin: 18px 0 0; border-bottom: 1px solid var(--border); }
+  .tab { background: none; color: var(--muted); border: 0; border-bottom: 2px solid transparent;
+    border-radius: 0; padding: 9px 14px; font-weight: 600; font-size: 14px; min-height: 0; cursor: pointer; }
+  .tab:hover { filter: none; color: var(--text); }
+  .tab.active { color: var(--text); border-bottom-color: var(--accent); }
+
+  /* aggregate — numeric stat cards + categorical frequency rows */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(88px, 1fr)); gap: 8px; margin: 2px 0 6px; }
+  .stat { background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; }
+  .stat .k { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .stat .v { font-size: 15px; font-weight: 600; margin-top: 2px; overflow-wrap: anywhere; }
+  .counts { color: var(--muted); font-size: 12px; margin: 2px 0 6px; display: flex; gap: 14px; flex-wrap: wrap; }
+  .counts b { color: var(--text); font-weight: 600; }
+  .ranked.freq .item { grid-template-columns: minmax(80px, 46%) 1fr 84px; }
+  .ranked.freq .item .pct { white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -116,8 +147,9 @@
   <div class="head">
     <div>
       <h1>Parser API — Tester</h1>
-      <p class="sub">Paste text, hit Parse. Returns broad <b>emphases</b> (taxonomy + lexicon) and
-         specific <b>keywords</b> (RAKE) — no LLM. Endpoint: <code>POST /api/parse</code>.</p>
+      <p class="sub" id="sub">Paste text and/or drop in files (pdf, pptx, docx, xlsx, txt), hit Parse. Returns broad
+         <b>emphases</b> (taxonomy + lexicon) and specific <b>keywords</b> (RAKE) — no LLM.
+         Endpoint: <code>POST /api/parse</code>.</p>
     </div>
     <span id="badge" class="badge"><span class="dot"></span><span id="badgeText">checking…</span></span>
   </div>
@@ -133,6 +165,12 @@
     </div>
   </div>
 
+  <div class="tabs">
+    <button class="tab active" data-tab="parse">Parse text</button>
+    <button class="tab" data-tab="agg">Aggregate records</button>
+  </div>
+
+  <div id="parseMode">
   <div class="grid">
     <div class="panel">
       <div class="presets">
@@ -142,8 +180,13 @@
       </div>
       <div class="field"><label>Extract (targets)</label></div>
       <div class="targets" id="targets"><span class="kind">loading lenses…</span></div>
-      <div class="field"><label for="text">Input text</label></div>
+      <div class="field"><label for="text">Input text <span style="opacity:.6">(optional)</span></label></div>
       <textarea id="text" placeholder="Paste a job description, lecture transcript, article…"></textarea>
+      <div class="field" style="margin-top:12px"><label for="files">Files
+        <span style="opacity:.6">(pdf · pptx · docx · xlsx · txt — optional)</span></label></div>
+      <input type="file" id="files" multiple
+        accept=".pdf,.pptx,.docx,.xlsx,.txt,.text,.md,.markdown,.csv,.tsv,.log,.rst" />
+      <div class="filelist" id="filelist"></div>
       <div class="row">
         <button id="go">Parse</button>
         <label style="margin:0;color:var(--muted);font-size:13px">keywords
@@ -167,6 +210,39 @@
     </div>
     <div id="taxOut" class="taxgrid"></div>
   </details>
+  </div><!-- /#parseMode -->
+
+  <div id="aggMode" style="display:none">
+    <div class="grid">
+      <div class="panel">
+        <div class="presets">
+          <button class="ghost sm" data-aggex="grads">Grad survey</button>
+          <button class="ghost sm" data-aggex="jobs">Job postings</button>
+          <button class="ghost sm" data-aggex="clear">Clear</button>
+        </div>
+        <div class="field"><label for="records">Records — JSON array of objects
+          <span style="opacity:.6">(or attach a CSV below)</span></label></div>
+        <textarea id="records" placeholder='[ { "placement": "Employed", "salary": 85000 }, … ]'></textarea>
+        <div class="field" style="margin-top:12px"><label for="csv">CSV / TSV file
+          <span style="opacity:.6">(optional — header row = field names)</span></label></div>
+        <input type="file" id="csv" accept=".csv,.tsv,.txt" />
+        <div class="filelist" id="csvlist"></div>
+        <div class="field" style="margin-top:12px"><label for="fields">Fields
+          <span style="opacity:.6">(optional, comma-separated — blank = all fields)</span></label></div>
+        <input type="text" id="fields" placeholder="salary, placement" autocomplete="off" spellcheck="false" />
+        <div class="row">
+          <button id="aggGo">Aggregate</button>
+          <label class="tgl" style="margin:0"><input type="checkbox" id="casefold" /> case-insensitive categories</label>
+          <span class="spacer"></span>
+          <button class="ghost sm" id="aggCurl">Copy as curl</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div id="aggOut"><div class="empty">Per-field statistics will appear here.</div></div>
+      </div>
+    </div>
+  </div><!-- /#aggMode -->
 </div>
 
 <script src="/app.js"></script>

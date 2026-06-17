@@ -2,22 +2,50 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Parser API",
-    "description": "Deterministic, LLM-free text extraction organized by composable lenses (emphasis axes, curated lexicons, and RAKE keywords).",
-    "version": "1.2.0"
+    "description": "Deterministic, LLM-free text extraction organized by composable lenses (emphasis axes, curated lexicons, and RAKE keywords), plus statistical aggregation over record sets. Accepts an inline string and/or uploaded files (pdf, pptx, docx, xlsx, txt, …).",
+    "version": "1.4.0"
   },
   "paths": {
     "/api/parse": {
       "post": {
-        "summary": "Parse text into lens-keyed results",
+        "summary": "Parse an inline string and/or uploaded files into lens-keyed results",
         "operationId": "parse",
         "requestBody": {
-          "required": true,
-          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ParseRequest" } } }
+          "required": false,
+          "description": "Provide `text`, one or more `files`, or both — all optional, but at least one must yield text.",
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/ParseRequest" } },
+            "multipart/form-data": { "schema": { "$ref": "#/components/schemas/ParseRequestMultipart" } }
+          }
         },
         "responses": {
           "200": {
             "description": "Lens-keyed results",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ParseResponse" } } }
+          },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "413": { "$ref": "#/components/responses/Error" },
+          "422": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/aggregate": {
+      "post": {
+        "summary": "Summarize a set of records into per-field statistics",
+        "operationId": "aggregate",
+        "requestBody": {
+          "required": true,
+          "description": "JSON `{records, fields}` or a multipart CSV/TSV `file` (+ optional `fields`).",
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/AggregateRequest" } },
+            "multipart/form-data": { "schema": { "$ref": "#/components/schemas/AggregateRequestMultipart" } }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Field-keyed statistics",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AggregateResponse" } } }
           },
           "400": { "$ref": "#/components/responses/Error" },
           "401": { "$ref": "#/components/responses/Error" },
@@ -58,9 +86,9 @@
     "schemas": {
       "ParseRequest": {
         "type": "object",
-        "required": ["text"],
+        "description": "JSON body (text only). For files, use multipart/form-data.",
         "properties": {
-          "text": { "type": "string", "description": "Text to analyze (1–50000 chars)." },
+          "text": { "type": "string", "description": "Text to analyze (optional). Combined input is capped at 200000 chars." },
           "targets": {
             "description": "Lenses to compute. Omit for the default lenses. Each item is a lens name or {name, limit}. Restrictive: only the requested lenses are returned.",
             "type": "array",
@@ -71,6 +99,20 @@
               ]
             }
           },
+          "max_keywords": { "type": "integer", "minimum": 1, "maximum": 50, "default": 15 }
+        }
+      },
+      "ParseRequestMultipart": {
+        "type": "object",
+        "description": "Form upload. Any subset of fields; merged (inline text first, then files sorted by name) into one document.",
+        "properties": {
+          "text": { "type": "string", "description": "Optional inline text." },
+          "files": {
+            "type": "array",
+            "description": "One or more files (pdf, pptx, docx, xlsx, txt, md, csv, …). Repeat the `files` part per file.",
+            "items": { "type": "string", "format": "binary" }
+          },
+          "targets": { "type": "string", "description": "JSON array string (e.g. [\"field\",\"keywords\"]) or comma-separated lens names." },
           "max_keywords": { "type": "integer", "minimum": 1, "maximum": 50, "default": 15 }
         }
       },
@@ -90,6 +132,120 @@
             }
           },
           "meta": { "$ref": "#/components/schemas/Meta" }
+        }
+      },
+      "FieldSelector": {
+        "description": "A field name, or an object forcing its kind / capping its categories.",
+        "oneOf": [
+          { "type": "string" },
+          {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": { "type": "string" },
+              "type": { "type": "string", "enum": ["numeric", "categorical"], "description": "Override the auto-detected kind." },
+              "limit": { "type": "integer", "description": "Cap the number of categories returned (categorical only)." },
+              "casefold": { "type": "boolean", "description": "Override the request-level `casefold` for this field (categorical only)." }
+            }
+          }
+        ]
+      },
+      "AggregateRequest": {
+        "type": "object",
+        "required": ["records"],
+        "properties": {
+          "records": {
+            "type": "array",
+            "description": "Non-empty array of row objects (e.g. job postings, survey responses).",
+            "items": { "type": "object", "additionalProperties": true }
+          },
+          "fields": {
+            "type": "array",
+            "description": "Restrictive selection of fields to summarize. Omit to summarize every field (first-seen order).",
+            "items": { "$ref": "#/components/schemas/FieldSelector" }
+          },
+          "casefold": { "type": "boolean", "default": false, "description": "Fold categorical values case-insensitively (e.g. merge 'Employed' and 'employed'). Per-field `casefold` overrides this." }
+        }
+      },
+      "AggregateRequestMultipart": {
+        "type": "object",
+        "description": "Form upload of a single tabular file. The header row supplies field names; delimiter (comma/tab/semicolon) is sniffed.",
+        "properties": {
+          "file": { "type": "string", "format": "binary", "description": "A CSV or TSV file." },
+          "fields": { "type": "string", "description": "JSON array string (e.g. [\"salary\"]) or comma-separated field names." },
+          "casefold": { "type": "string", "description": "Truthy ('1'/'true'/'yes'/'on') to fold categorical values case-insensitively." }
+        }
+      },
+      "AggregateResponse": {
+        "type": "object",
+        "properties": {
+          "results": {
+            "type": "object",
+            "description": "Keyed by field name; shape depends on the field's detected kind.",
+            "additionalProperties": {
+              "oneOf": [
+                { "$ref": "#/components/schemas/NumericStats" },
+                { "$ref": "#/components/schemas/CategoricalStats" },
+                { "$ref": "#/components/schemas/EmptyStats" }
+              ]
+            }
+          },
+          "meta": {
+            "type": "object",
+            "properties": {
+              "records": { "type": "integer" },
+              "fields_analyzed": { "type": "integer" },
+              "version": { "type": "string" }
+            }
+          }
+        }
+      },
+      "NumericStats": {
+        "type": "object",
+        "properties": {
+          "kind": { "type": "string", "enum": ["numeric"] },
+          "count": { "type": "integer", "description": "Parsed numeric values." },
+          "missing": { "type": "integer", "description": "Absent/blank/NA values." },
+          "invalid": { "type": "integer", "description": "Present but unparseable values." },
+          "mean": { "type": ["number", "null"] },
+          "median": { "type": ["number", "null"] },
+          "min": { "type": ["number", "null"] },
+          "max": { "type": ["number", "null"] },
+          "sum": { "type": ["number", "null"] },
+          "stdev": { "type": ["number", "null"], "description": "Sample standard deviation (null when count < 2)." },
+          "p25": { "type": ["number", "null"], "description": "First quartile (null when count < 2)." },
+          "p75": { "type": ["number", "null"], "description": "Third quartile (null when count < 2)." }
+        }
+      },
+      "CategoricalStats": {
+        "type": "object",
+        "properties": {
+          "kind": { "type": "string", "enum": ["categorical"] },
+          "count": { "type": "integer" },
+          "missing": { "type": "integer" },
+          "distinct": { "type": "integer", "description": "Full cardinality, even when `frequencies` is capped by `limit`." },
+          "mode": { "type": ["string", "null"] },
+          "truncated": { "type": "boolean", "description": "Present and true when `frequencies` was capped by `limit`." },
+          "frequencies": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "value": { "type": "string" },
+                "count": { "type": "integer" },
+                "proportion": { "type": "number", "description": "Share of present values (0..1)." }
+              }
+            }
+          }
+        }
+      },
+      "EmptyStats": {
+        "type": "object",
+        "description": "A field with no present values.",
+        "properties": {
+          "kind": { "type": "string", "enum": ["empty"] },
+          "count": { "type": "integer", "enum": [0] },
+          "missing": { "type": "integer" }
         }
       },
       "Emphasis": {
@@ -173,7 +329,21 @@
         "type": "object",
         "properties": {
           "token_count": { "type": "integer" },
-          "version": { "type": "string" }
+          "version": { "type": "string" },
+          "sources": {
+            "type": "array",
+            "description": "What was ingested. `text` for the inline string; one entry per file (failed files included with `ok:false`).",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string", "description": "Filename, or 'text' for the inline string." },
+                "kind": { "type": "string", "description": "text | txt | pdf | docx | pptx | xlsx | …" },
+                "chars": { "type": "integer", "description": "Extracted character count (0 when failed)." },
+                "ok": { "type": "boolean" },
+                "error": { "type": "string", "description": "Present only when `ok` is false." }
+              }
+            }
+          }
         }
       },
       "Health": {

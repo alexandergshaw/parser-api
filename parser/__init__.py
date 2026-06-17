@@ -4,8 +4,9 @@ Deterministic, LLM-free extraction of a text's broad emphases (via curated taxon
 + lexicon scoring) and specific subtopics/keywords (via pure-Python RAKE).
 """
 
-__version__ = "1.2.0"
+__version__ = "1.4.0"
 
+from .aggregate import aggregate  # noqa: F401
 from .pipeline import parse  # noqa: F401
 
-__all__ = ["parse", "__version__"]
+__all__ = ["parse", "aggregate", "__version__"]

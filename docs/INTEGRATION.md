@@ -1,8 +1,13 @@
-# Parser API — Integration Spec (v1.2.0)
+# Parser API — Integration Spec (v1.4.0)
 
 Canonical integration reference. The Parser API is a standalone, deterministic, **no-LLM** text
 extraction service. It is **lens-oriented**: you tell it which lenses to apply via `targets`, and it
-returns a result per lens. It is domain-general and contains no résumé/job/HR-specific concepts.
+returns a result per lens. Input may be an inline string and/or uploaded files (pdf, pptx, docx,
+xlsx, txt, …); it is domain-general and contains no résumé/job/HR-specific concepts.
+
+A companion endpoint, `POST /api/aggregate`, works on **structured records** instead of prose: it
+computes summary statistics (means, medians, quartiles, frequency distributions) over targeted
+fields — same deterministic, no-LLM contract, same `{results, meta}` envelope.
 
 ## 1. Lenses (the core concept)
 
@@ -29,7 +34,8 @@ stateless/idempotent, explainable (every emphasis ships its `matched_terms`), se
 - `{BASE_URL}` = your Vercel domain. Bodies are `application/json; charset=utf-8`.
 
 ## 3. Auth & CORS
-- `API_KEY` env unset → open (default). Set → `POST /api/parse` requires `X-API-Key`; else **401**.
+- `API_KEY` env unset → open (default). Set → `POST /api/parse` and `POST /api/aggregate` require
+  `X-API-Key`; else **401**.
 - `ALLOWED_ORIGINS` (comma-separated, default `*`) controls CORS. Server-to-server can ignore CORS.
 
 ## 4. Endpoints
@@ -37,6 +43,7 @@ stateless/idempotent, explainable (every emphasis ships its `matched_terms`), se
 | Method | Path | Purpose |
 |---|---|---|
 | `POST` | `/api/parse` | Parse text into lens-keyed results |
+| `POST` | `/api/aggregate` | Summarize a record set into per-field statistics |
 | `GET` | `/api/lenses` | Discover available lenses (what `targets` accepts) |
 | `GET` | `/api/taxonomy` | Enumerate the emphasis vocabulary |
 | `GET` | `/api/health` | Liveness + version + category count |
@@ -44,7 +51,7 @@ stateless/idempotent, explainable (every emphasis ships its `matched_terms`), se
 
 ```jsonc
 // GET /api/lenses
-{ "version": "1.2.0", "lenses": [
+{ "version": "1.4.0", "lenses": [
   { "name": "field",        "kind": "emphasis", "default": true },
   { "name": "sector",       "kind": "emphasis", "default": true },
   { "name": "intent",       "kind": "emphasis", "default": false },
@@ -54,21 +61,44 @@ stateless/idempotent, explainable (every emphasis ships its `matched_terms`), se
 ] }
 
 // GET /api/health
-{ "status": "ok", "version": "1.2.0", "categories": 29 }
+{ "status": "ok", "version": "1.4.0", "categories": 29 }
 ```
 
 ## 5. `POST /api/parse` — Request
 
+Two content types. **`application/json`** (text only — back-compatible):
+
 ```jsonc
 {
-  "text": "string",                      // REQUIRED, 1–50000 chars
+  "text": "string",                      // optional now; provide text and/or files
   "targets": ["field", "technologies"],  // optional; omit → default lenses. RESTRICTIVE: only these are returned.
   "max_keywords": 15                     // optional, 1..50, default 15 (keywords lens)
 }
 ```
+
+**`multipart/form-data`** (text and/or files). Repeat the `files` part per file; `targets` is a JSON
+array string or a comma list:
+
+```bash
+curl -s {BASE_URL}/api/parse \
+  -F files=@lecture3.pptx -F files=@chapter.pdf \
+  -F 'text=optional inline framing' \
+  -F 'targets=["field","intent","keywords"]' -F max_keywords=20
+```
+
+**Inputs (both optional).** Everything submitted is merged into one document — **inline `text` first,
+then files sorted by name**, joined with blank lines — then run through the pipeline. Supported files:
+`.pdf` (pypdf), `.docx`/`.pptx`/`.xlsx` (stdlib OOXML), and `.txt`/`.md`/`.csv`/`.tsv`/`.log`/`.rst`.
+A file that can't be read (unsupported type, corrupt, encrypted, scanned/image-only PDF) **fails
+softly** — it's reported in `meta.sources` with `ok:false` and skipped, not fatal.
+
 - `targets` items are a **lens name** or `{ "name": "keywords", "limit": 10 }` (per-lens cap).
-- Validation: blank/missing `text` → **400**; > 50000 chars → **413**; `max_keywords` out of range,
-  `targets` not an array, unknown/duplicate/empty target → **422** (`{ "detail": "…" }`).
+- Validation: no usable input at all → **400**; inputs given but none yield text → **422** (detail
+  lists the per-file reasons); combined text > `MAX_COMBINED_CHARS` (default 200000) → **413**; request
+  body > `MAX_TOTAL_UPLOAD_BYTES` or more than `MAX_FILES` files → **413**/**422**; `max_keywords` out
+  of range, `targets` not an array, unknown/duplicate/empty target → **422** (`{ "detail": "…" }`).
+- Per-file size cap `MAX_FILE_BYTES` (default 10 MB). **On Vercel**, the platform caps serverless
+  request bodies at ~4.5 MB — large uploads may be rejected before reaching the function.
 
 ## 6. `POST /api/parse` — Response (200)
 
@@ -104,7 +134,8 @@ Real response for `targets: ["field","technologies","keywords"], max_keywords: 4
       ]
     }
   },
-  "meta": { "token_count": 26, "version": "1.2.0" }
+  "meta": { "token_count": 26, "version": "1.4.0",
+            "sources": [ { "name": "text", "kind": "text", "chars": 142, "ok": true } ] }
 }
 ```
 
@@ -136,22 +167,72 @@ the cue words that drove the score. Example:
 ] }
 ```
 
-**meta** → `{ token_count, version }`.
+**meta** → `{ token_count, version, sources }`. `sources` lists what was ingested — one entry per
+input (`name`: filename or `"text"`; `kind`; `chars`; `ok`; plus `error` when `ok` is false). Failed
+files appear here with `ok:false` and are skipped from the parse, so callers can audit coverage.
 
-## 7. Scoring (emphasis lenses)
+## 7. `POST /api/aggregate` — Records → statistics
+
+A non-text modality sharing the same `{results, meta}` envelope, keyed by **field** instead of lens.
+Takes a set of records (job postings, survey rows, …) and returns summary statistics per field.
+
+**Request** — `application/json`:
+```jsonc
+{
+  "records": [ { "placement": "Employed", "salary": "85000" }, … ],  // required: non-empty array of objects
+  "fields": ["salary", "placement"],  // optional; omit → every field. RESTRICTIVE.
+  "casefold": false                    // optional; fold categorical values case-insensitively
+}                                      // field item: a name, or { "name", "type"?, "limit"?, "casefold"? }
+```
+Or `multipart/form-data`: one CSV/TSV `file` (header row = field names; delimiter sniffed) + optional
+`fields` (a JSON array string or comma list) and `casefold` (`1`/`true`/`yes`/`on`).
+
+**Field kind** is inferred from the values — predominantly number-like → `numeric`, else
+`categorical` — and can be forced per field via `type`:
+
+- **numeric** → `{ kind, count, missing, invalid, mean, median, min, max, sum, stdev, p25, p75 }`.
+  `count` = parsed numbers; `missing` = blank/NA/absent; `invalid` = present but unparseable. `stdev`
+  is the sample stdev; `stdev`/`p25`/`p75` are `null` when `count < 2`. Parsing strips `$ , %` (so
+  `"$85,000"` and `"12%"` read as numbers); booleans are treated as categorical, not numeric.
+- **categorical** → `{ kind, count, missing, distinct, mode, frequencies:[{ value, count, proportion }] }`,
+  sorted by `count` desc then `value` asc. `distinct` is the full cardinality even when `frequencies`
+  is capped by a field's `limit` (in which case `truncated: true` is also present). Case-sensitive
+  unless `casefold` is set (request-level or per field), which folds values and reports the folded form.
+- **empty** → `{ kind:"empty", count:0, missing }` for a field with no present values.
+
+```jsonc
+// Response 200 (fields: ["salary","placement"])
+{
+  "results": {
+    "salary":    { "kind":"numeric", "count":2, "missing":1, "invalid":0, "mean":90000, "median":90000,
+                   "min":85000, "max":95000, "sum":180000, "stdev":7071.0678, "p25":82500, "p75":97500 },
+    "placement": { "kind":"categorical", "count":3, "missing":0, "distinct":2, "mode":"Employed",
+                   "frequencies":[ { "value":"Employed","count":2,"proportion":0.6667 },
+                                   { "value":"Grad school","count":1,"proportion":0.3333 } ] }
+  },
+  "meta": { "records":3, "fields_analyzed":2, "version":"1.4.0" }
+}
+```
+
+**Missing markers:** `null`, `""`, whitespace, and `na`/`n/a`/`null`/`nan` (case-insensitive).
+**Validation:** absent `records` (or no multipart `file`) → **400**; `records` not a non-empty array
+of objects, an unknown field name, an empty `fields`, or a bad `type` → **422**; file over
+`MAX_FILE_BYTES` (10 MB) → **413**.
+
+## 8. Scoring (emphasis lenses)
 Per-category raw = Σ `weight × (1 + ln(count)) × idf(term)`; reported `score` = raw normalized
 **within the axis**. A category surfaces only with ≥2 matched terms or one specific (weight ≥2)
 term, so a lone common word never creates an emphasis. Matching is case-insensitive and lightly
 stemmed (plurals match).
 
-## 8. Vocabulary (`GET /api/taxonomy`)
+## 9. Vocabulary (`GET /api/taxonomy`)
 ⚠️ Data-driven and growing — treat ids/labels as an open set; prefer `id`, fetch the live list.
 Currently 17 fields (incl. `data_science`, `machine_learning`, `software_engineering`,
 `business_management`, `physics`, …) + 5 sectors (`software_industry`, `academia`, `research`,
 `healthcare`, `finance`) + 7 intents on the `intent` axis (`hiring`, `teaching`, `selling`,
 `informing`, `instructing`, `requesting`, `announcing`). Each category carries its `type` (the axis).
 
-## 9. Client example (Python)
+## 10. Client example (Python)
 ```python
 import httpx
 r = httpx.post(f"{BASE_URL}/api/parse",
@@ -163,14 +244,16 @@ field = res["field"]["top"]                       # {id,label,score,...} or None
 techs = [m["display"] for m in res["technologies"]["matched"]]
 ```
 
-## 10. Recommended integration pattern
+## 11. Recommended integration pattern
 1. On startup, `GET /api/lenses` (+ `/api/taxonomy`) and cache them.
 2. Request exactly the lenses you need via `targets` (restrictive → lean responses).
 3. Read `results.<lens>.top` for the pertinent emphasis; iterate `matched`/`items` for the rest.
    Render `display`, join/dedup on `term`/`id`, group by `related.id`.
 4. Cache on `sha256(text) + sorted(targets) + meta.version`.
 
-## 11. Versioning
-`meta.version` / `/api/health` / `/api/taxonomy` / `/api/lenses` report semver (currently `1.2.0`).
-1.2.0 is the lens-oriented contract; pin to it and re-fetch `/api/lenses` + `/api/taxonomy` on minor
-bumps (which may grow lenses/vocabulary).
+## 12. Versioning
+`meta.version` / `/api/health` / `/api/taxonomy` / `/api/lenses` report semver (currently `1.4.0`).
+The 1.x line is the lens-oriented contract; pin to it and re-fetch `/api/lenses` + `/api/taxonomy` on
+minor bumps (which may grow lenses/vocabulary). 1.3.0 added file ingestion (multipart uploads +
+`meta.sources`); 1.4.0 added record aggregation (`POST /api/aggregate`). The JSON text-only
+`/api/parse` request remains back-compatible throughout.

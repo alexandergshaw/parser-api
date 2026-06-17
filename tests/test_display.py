@@ -39,4 +39,4 @@ def test_output_is_byte_identical_across_runs():
 
 
 def test_version_is_reported():
-    assert parse("Machine learning with neural networks.")["meta"]["version"] == "1.2.0"
+    assert parse("Machine learning with neural networks.")["meta"]["version"] == "1.4.0"

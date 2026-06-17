@@ -1,8 +1,8 @@
 # Parser API
 
-The first service in an **LLM-alternative ecosystem**. It ingests a block of text (job
-descriptions, resumes, lecture transcripts, …) and returns — **without any LLM**, fully
-deterministically — structured extractions organized by **lenses** the caller chooses.
+The first service in an **LLM-alternative ecosystem**. It ingests text — as an inline string
+and/or uploaded files (**pdf, pptx, docx, xlsx, txt, md, csv, …**) — and returns — **without any
+LLM**, fully deterministically — structured extractions organized by **lenses** the caller chooses.
 
 You pass which lenses to apply (`targets`); the API returns a result per lens:
 
@@ -19,11 +19,11 @@ detected technologies drive deep-dive research.
 ## How it works
 
 ```
-text ─► normalize (tokenize, stem, n-grams)
+text + files ─► ingest (pdf/docx/pptx/xlsx/txt ─► text) ─► merge ─► normalize (tokenize, stem, n-grams)
           ├─ emphasis lenses ─ per-axis lexicon scoring over taxonomy/*.json ─► top + ranked
           ├─ lexicon lenses  ─ curated term lists in taxonomy/lexicons/      ─► matched terms
           └─ keywords lens   ─ pure-Python RAKE                              ─► keyphrases
-                                                          results keyed by requested lens ─► JSON
+                                       results keyed by requested lens (+ meta.sources) ─► JSON
 ```
 
 - **No LLM, no training data, no network calls.** Deterministic and explainable — every emphasis
@@ -40,6 +40,7 @@ text ─► normalize (tokenize, stem, n-grams)
 | --- | --- |
 | `api/index.py` | Flask app — Vercel entrypoint, `/api/parse`, serves the testing UI at `/` |
 | `parser/` | Framework-agnostic core (lenses, per-axis scoring, RAKE) |
+| `parser/ingest.py` | File → text extraction (pdf via pypdf; docx/pptx/xlsx via stdlib) + deterministic merge |
 | `taxonomy/` | `fields.json`, `sectors.json`, `lenses.json`, `lexicons/technologies.json` |
 | `web/index.html`, `web/app.js` | Lens-agnostic testing UI (served by the function; not in reserved `public/`) |
 | `tests/` | pytest suite |
@@ -59,14 +60,15 @@ pytest                          # run the test suite
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `POST` | `/api/parse` | Parse text into lens-keyed results |
+| `POST` | `/api/parse` | Parse an inline string and/or uploaded files into lens-keyed results |
+| `POST` | `/api/aggregate` | Summarize a set of records (JSON or CSV) into per-field statistics |
 | `GET` | `/api/lenses` | Discover available lenses (what `targets` accepts) |
 | `GET` | `/api/taxonomy` | Enumerate the emphasis vocabulary (`{id, label, type}`) |
 | `GET` | `/api/health` | Liveness, version, taxonomy size |
 | `GET` | `/docs`, `/openapi.json` | Swagger UI + machine-readable schema |
 
 ```jsonc
-// POST /api/parse — request
+// POST /api/parse — request (application/json, text only)
 { "text": "…", "targets": ["field", "technologies"], "max_keywords": 15 }
 // `targets` is optional (omit → default lenses) and RESTRICTIVE — only those lenses are returned.
 
@@ -85,8 +87,87 @@ pytest                          # run the test suite
                      "related": { "id": "data_science", "label": "Data Science" } } ]
     }
   },
-  "meta": { "token_count": 26, "version": "1.2.0" }
+  // `meta.sources` lists what was ingested (the inline `text` + each file).
+  "meta": { "token_count": 26, "version": "1.4.0",
+            "sources": [ { "name": "text", "kind": "text", "chars": 142, "ok": true } ] }
 }
+```
+
+### Inputs: text and/or files
+
+`text` and files are both optional; submit any subset and the parser parses the union. Everything is
+merged into one document in a deterministic order — **inline `text` first, then files sorted by name**
+— and run through the same pipeline. `meta.sources` reports each input (a failed file appears with
+`ok:false` and an `error`, and is simply skipped — one bad file never sinks the request).
+
+```bash
+# multipart/form-data — files (repeat `files` per file) + optional text/targets
+curl -s {BASE_URL}/api/parse \
+  -F files=@lecture3.pptx \
+  -F files=@chapter.pdf \
+  -F 'text=Intro framing for the deck' \
+  -F 'targets=["field","intent","keywords"]'
+```
+
+| Format | How it's read |
+| --- | --- |
+| `.txt` `.md` `.csv` `.tsv` `.log` `.rst` | decoded as text (UTF-8 with fallback) |
+| `.docx` `.pptx` `.xlsx` | stdlib `zipfile` + `xml.etree` (OOXML) — no `lxml`/Office libs |
+| `.pdf` | `pypdf` (pure-Python). Scanned/image-only PDFs yield no text (no OCR) |
+
+Not supported: legacy binary `.doc`/`.ppt`/`.xls` (OLE) and OCR of image-only PDFs. Limits
+(`MAX_COMBINED_CHARS`, `MAX_FILES`, `MAX_FILE_BYTES`, `MAX_TOTAL_UPLOAD_BYTES`) are configurable —
+see below. On Vercel, note the platform's ~4.5 MB serverless body cap.
+
+### Aggregating records (`/api/aggregate`)
+
+A second front door that takes **structured records** instead of prose — job postings, student-survey
+rows, … — and returns summary statistics over targeted fields. Same deterministic, LLM-free contract;
+same `{results, meta}` shape, keyed by field instead of lens.
+
+Each field's *kind* is inferred from its values: mostly numbers → **numeric** (mean/median/min/max/
+stdev/quartiles); otherwise → **categorical** (value frequencies, mode, proportions). So a salary
+column gets descriptive stats while a "placement after graduation" column gets a distribution. Like
+`targets`, `fields` is **restrictive** — omit it to summarize every field. Force a kind or cap a
+category list per field with `{ "name": …, "type": "numeric"|"categorical", "limit": N }`.
+
+```jsonc
+// POST /api/aggregate — request (application/json)
+{
+  "records": [
+    { "placement": "Employed",    "salary": "85000" },
+    { "placement": "Employed",    "salary": "95000" },
+    { "placement": "Grad school", "salary": "" }
+  ],
+  "fields": ["salary", "placement"]   // optional; omit → every field
+}
+
+// Response 200 — keyed by field
+{
+  "results": {
+    "salary":    { "kind": "numeric", "count": 2, "missing": 1, "invalid": 0,
+                   "mean": 90000, "median": 90000, "min": 85000, "max": 95000,
+                   "sum": 180000, "stdev": 7071.0678, "p25": 82500, "p75": 97500 },
+    "placement": { "kind": "categorical", "count": 3, "missing": 0, "distinct": 2,
+                   "mode": "Employed",
+                   "frequencies": [ { "value": "Employed", "count": 2, "proportion": 0.6667 },
+                                    { "value": "Grad school", "count": 1, "proportion": 0.3333 } ] }
+  },
+  "meta": { "records": 3, "fields_analyzed": 2, "version": "1.4.0" }
+}
+```
+
+Numeric parsing is forgiving — `"$85,000"` and `"12%"` read as `85000` and `12`; blanks and the NA
+markers (`""`, `na`, `n/a`, `null`, `nan`) count as `missing`; present-but-unparseable values count
+as `invalid`. Booleans are treated as categorical. Categories are **case-sensitive** by default;
+pass `"casefold": true` (request-level, or per field) to merge `"Employed"`/`"employed"`. Survey/job
+exports are usually CSV, so a single CSV/TSV file works too (header row = field names; delimiter sniffed):
+
+```bash
+# multipart/form-data — one tabular file + optional fields selector
+curl -s {BASE_URL}/api/aggregate \
+  -F file=@survey.csv \
+  -F 'fields=["salary","placement"]'
 ```
 
 Full contract for ecosystem consumers: the [integration spec](docs/INTEGRATION.md); live schema at
@@ -99,6 +180,10 @@ Full contract for ecosystem consumers: the [integration spec](docs/INTEGRATION.m
 | `ALLOWED_ORIGINS` | `*` | Comma-separated CORS origins |
 | `API_KEY` | _(empty)_ | When set, callers must send `X-API-Key`; empty = open |
 | `CONFIDENCE_THRESHOLD` | `0.15` | Below this, results are flagged `low_confidence` |
+| `MAX_COMBINED_CHARS` | `200000` | Cap on the merged text the parser sees (`413` over cap) |
+| `MAX_FILES` | `20` | Max uploaded files per request |
+| `MAX_FILE_BYTES` | `10485760` | Per-file size cap (oversized files fail softly) |
+| `MAX_TOTAL_UPLOAD_BYTES` | `16777216` | Whole-request body cap (`413`) |
 
 See `.env.example`.
 

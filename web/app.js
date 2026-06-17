@@ -163,7 +163,7 @@ function renderLens(r) {
 function renderTone(r) {
   const dims = r.dimensions || [];
   if (!dims.length) return '<div class="empty">none</div>';
-  return dims.map((d) => {
+  const rows = dims.map((d) => {
     const ev = (d.evidence || []).map((e) => `<span class="chip">${escapeHtml(e)}</span>`).join('');
     return `<div class="item"><span class="nm">${escapeHtml(d.label)}
         <span class="kind">${escapeHtml(d.leaning || '')}</span></span>
@@ -171,6 +171,7 @@ function renderTone(r) {
       <span class="pct">${pct(d.score)}%</span></div>` +
       (ev ? `<div class="chips" style="margin:-2px 0 8px 0">${ev}</div>` : '');
   }).join('');
+  return `<div class="ranked">${rows}</div>`;
 }
 
 function renderEmphasis(r) {
